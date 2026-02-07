@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1037727796202",
+    "project_id": "moveon-d1d1c",
+    "storage_bucket": "moveon-d1d1c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1037727796202:android:7890aacd5b35fa1cb6c093",
+        "android_client_info": {
+          "package_name": "com.example.moveon"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK_GHrsnd4ZXmi7jeD7YayB4JyyRdsPbU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
