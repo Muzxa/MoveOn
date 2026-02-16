@@ -6,6 +6,7 @@ data class UserDto(
     val last_name: String = "",
     val email: String = "",
     val phone_number: String = "",
-    val role: String = "User", // Role can be "User", "Provider", or "Driver"
-    val created_at: Long = 0L
+    val role: String = "User",
+    val created_at: Long = 0L,
+    val last_login_time: Long? = null  
 )

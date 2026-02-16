@@ -1,7 +1,9 @@
 package com.example.moveon.di
 
+import com.example.moveon.data.repository.AuthRepositoryImpl
 import com.example.moveon.data.repository.InventoryRepositoryImpl
 import com.example.moveon.data.repository.LogisticsRepositoryImpl
+import com.example.moveon.domain.repository.AuthRepository
 import com.example.moveon.domain.repository.InventoryRepository
 import com.example.moveon.domain.repository.LogisticsRepository
 import dagger.Binds
@@ -20,4 +22,8 @@ abstract class RepositoryModule {
     @Binds
     @ViewModelScoped
     abstract fun bindLogisticsRepository(impl: LogisticsRepositoryImpl): LogisticsRepository
+
+    @Binds
+    @ViewModelScoped
+    abstract fun bindAuthRepository(authRepositoryImpl: AuthRepositoryImpl) : AuthRepository
 }

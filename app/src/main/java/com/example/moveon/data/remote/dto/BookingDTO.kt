@@ -10,5 +10,7 @@ data class BookingDto(
     val total_fare: Double = 0.0,
     val otp: String = "",
     val otp_verified: Boolean = false,
-    val scheduled_time: Long = 0L
+    val created_at: Long = 0L,
+    val scheduled_time: Long = 0L,
+    val rating: Float = 0F
 )
