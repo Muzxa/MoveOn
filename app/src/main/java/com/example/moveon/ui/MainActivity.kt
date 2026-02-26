@@ -1,4 +1,4 @@
-package com.example.moveon
+package com.example.moveon.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.moveon.ui.Screen
 import com.example.moveon.ui.features.auth.LoginScreen
+import com.example.moveon.ui.features.auth.RegisterScreen
 import com.moveon.app.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -44,6 +45,20 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNavigateToRegister = {
                                     navController.navigate(Screen.Register.route)
+                                }
+                            )
+                        }
+
+                        // 2. Register Route
+                        composable(Screen.Register.route) {
+                            RegisterScreen(
+                                onNavigateToHome = {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Login.route) { inclusive = true }
+                                    }
+                                },
+                                onNavigateToLogin = {
+                                    navController.popBackStack() // Just pop back to Login
                                 }
                             )
                         }

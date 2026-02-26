@@ -12,7 +12,20 @@
           "package_name": "com.example.moveon"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1037727796202-7a9p6154gh6pdtdfdd7n3rp3nronik5l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.moveon",
+            "certificate_hash": "4135aa9001c7ef56fe68d9afb411b5dac0a38ae4"
+          }
+        },
+        {
+          "client_id": "1037727796202-8t9jp890rhk8vrpf9rdvf01g5varfeim.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBK_GHrsnd4ZXmi7jeD7YayB4JyyRdsPbU"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1037727796202-8t9jp890rhk8vrpf9rdvf01g5varfeim.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
