@@ -3,6 +3,7 @@ package com.example.moveon.di
 import android.content.Context
 import androidx.room.Room
 import com.example.moveon.data.local.MoveOnDatabase
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
@@ -38,4 +39,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideRealtimeDatabase() = FirebaseDatabase.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth() = FirebaseAuth.getInstance()
 }
