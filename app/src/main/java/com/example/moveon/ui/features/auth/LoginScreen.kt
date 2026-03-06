@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,15 +46,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+
+// Local Colors to comply with figma (temporary)
+private val LoginBlue       = Color(0xFF1565C0)
+private val LoginBlueDark   = Color(0xFF0D47A1)
+private val LoginPageBg     = Color(0xFFFAFAFA)
+private val LoginInputBg    = Color(0xFFF5F5F5)
+private val LoginDivider    = Color(0xFFE0E0E0)
+private val LoginText       = Color(0xFF000000)
+private val LoginTextMuted  = Color(0x99000000) 
 
 @Composable
 fun LoginScreen(
@@ -79,53 +88,44 @@ fun LoginScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
 
-        // ── Branded header ───────────────────────────────────────
+        // ── Blue gradient header ──────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
+                    Brush.verticalGradient(listOf(LoginBlue, LoginBlueDark))
                 )
-                .padding(start = 24.dp, end = 24.dp, top = 52.dp, bottom = 36.dp)
+                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 32.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                 Text(
                     text = "MoveOn",
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.sp
-                    ),
+                    style = MaterialTheme.typography.headlineLarge,
                     color = Color.White
                 )
+                Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "Welcome Back!",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
+                    style = MaterialTheme.typography.headlineMedium,
                     color = Color.White
                 )
                 Text(
                     text = "Sign in to continue your journey",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleLarge,
                     color = Color.White.copy(alpha = 0.6f)
                 )
             }
         }
 
-        // ── Form card ────────────────────────────────────────────
+        // ── Light form card ───────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color(0xFF1E293B))
+                .background(LoginPageBg)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
 
             // Sign In / Sign Up tab toggle
@@ -134,23 +134,22 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(44.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(LoginInputBg)
                     .padding(4.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        .shadow(elevation = 2.dp, shape = RoundedCornerShape(10.dp))
                         .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.primary),
+                        .background(Color.White),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "Sign In",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = Color.White
+                        style = MaterialTheme.typography.labelLarge,
+                        color = LoginText
                     )
                 }
                 Box(
@@ -162,135 +161,147 @@ fun LoginScreen(
                 ) {
                     Text(
                         "Sign Up",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = LoginTextMuted
+                    )
+                }
+            }
+
+            // Form fields
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                // Email field
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Email Address",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        color = LoginText
                     )
-                }
-            }
-
-            // Email field
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "Email Address",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = {
-                        Text(
-                            "you@example.com",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Outlined.Email,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.background,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                    )
-                )
-            }
-
-            // Password field
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "Password",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    placeholder = {
-                        Text(
-                            "Enter your password",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Outlined.Lock,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                if (passwordVisible) Icons.Outlined.Visibility
-                                else Icons.Outlined.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Hide password"
-                                else "Show password",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        placeholder = {
+                            Text(
+                                "you@example.com",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = LoginTextMuted
                             )
-                        }
-                    },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None
-                    else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.background,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
-                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                    )
-                )
-            }
-
-            // Remember me + Forgot Password
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { rememberMe = !rememberMe }
-                ) {
-                    Checkbox(
-                        checked = rememberMe,
-                        onCheckedChange = { rememberMe = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = MaterialTheme.colorScheme.primary,
-                            uncheckedColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Outlined.Email,
+                                contentDescription = null,
+                                tint = LoginTextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.labelMedium,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = LoginInputBg,
+                            unfocusedContainerColor = LoginInputBg,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = LoginText,
+                            unfocusedTextColor = LoginText,
+                            cursorColor = LoginBlue
                         )
                     )
+                }
+
+                // Password field
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Remember me",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        "Password",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = LoginText
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        placeholder = {
+                            Text(
+                                "Enter your password",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = LoginTextMuted
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Outlined.Lock,
+                                contentDescription = null,
+                                tint = LoginTextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    if (passwordVisible) Icons.Outlined.Visibility
+                                    else Icons.Outlined.VisibilityOff,
+                                    contentDescription = if (passwordVisible) "Hide password"
+                                    else "Show password",
+                                    tint = LoginTextMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.labelMedium,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = LoginInputBg,
+                            unfocusedContainerColor = LoginInputBg,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = LoginText,
+                            unfocusedTextColor = LoginText,
+                            cursorColor = LoginBlue
+                        )
                     )
                 }
-                TextButton(onClick = { }) {
-                    Text(
-                        "Forgot Password?",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
+
+                // Remember me + Forgot Password
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.clickable { rememberMe = !rememberMe }
+                    ) {
+                        Checkbox(
+                            checked = rememberMe,
+                            onCheckedChange = { rememberMe = it },
+                            modifier = Modifier.size(18.dp),
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = LoginBlue,
+                                uncheckedColor = LoginTextMuted,
+                                checkmarkColor = Color.White
+                            )
+                        )
+                        Text(
+                            "Remember me",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = LoginTextMuted
+                        )
+                    }
+                    TextButton(onClick = {}) {
+                        Text(
+                            "Forgot Password?",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = LoginBlue
+                        )
+                    }
                 }
             }
 
@@ -303,32 +314,34 @@ fun LoginScreen(
                 )
             }
 
-            // Sign In button — pill shape
+            // Sign In button
             Button(
                 onClick = { viewModel.onEvent(AuthEvent.Login(email, password)) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(44.dp),
                 enabled = authState !is AuthViewModel.AuthState.Loading,
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = LoginBlue,
                     contentColor = Color.White
                 ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 6.dp,
+                    pressedElevation = 10.dp
+                )
             ) {
                 if (authState is AuthViewModel.AuthState.Loading) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp
                     )
                 } else {
                     Text(
                         "Sign In",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White
                     )
                 }
             }
@@ -337,29 +350,23 @@ fun LoginScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                HorizontalDivider(
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.12f)
-                )
+                HorizontalDivider(modifier = Modifier.weight(1f), color = LoginDivider)
                 Text(
                     "Or continue with",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LoginTextMuted
                 )
-                HorizontalDivider(
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.12f)
-                )
+                HorizontalDivider(modifier = Modifier.weight(1f), color = LoginDivider)
             }
 
-            // Social sign-in buttons
+            // Social sign-in buttons (Google / Facebook / Apple)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                listOf("G", "f", "") .forEach { label ->
+                listOf("G", "f", "\uF8FF").forEach { label ->
                     OutlinedButton(
                         onClick = {},
                         modifier = Modifier
@@ -367,19 +374,14 @@ fun LoginScreen(
                             .height(48.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            contentColor = MaterialTheme.colorScheme.onBackground
+                            containerColor = LoginPageBg,
+                            contentColor = LoginText
                         ),
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
-                        )
+                        border = BorderStroke(1.dp, LoginDivider)
                     ) {
                         Text(
                             label,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            )
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
                 }
@@ -387,3 +389,4 @@ fun LoginScreen(
         }
     }
 }
+
