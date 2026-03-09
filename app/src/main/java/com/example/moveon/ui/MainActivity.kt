@@ -16,6 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.moveon.ui.Screen
 import com.example.moveon.ui.features.auth.LoginScreen
 import com.example.moveon.ui.features.auth.RegisterScreen
+import com.example.moveon.ui.features.home.HomeScreen
 import com.moveon.app.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -39,7 +40,6 @@ class MainActivity : ComponentActivity() {
                             LoginScreen(
                                 onNavigateToHome = {
                                     navController.navigate(Screen.Home.route) {
-                                        // Clear the backstack so user can't press 'back' to go to login
                                         popUpTo(Screen.Login.route) { inclusive = true }
                                     }
                                 },
@@ -61,6 +61,11 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack() // Just pop back to Login
                                 }
                             )
+                        }
+
+                        // 3. Home Route
+                        composable(Screen.Home.route) {
+                            HomeScreen()
                         }
                     }
                 }

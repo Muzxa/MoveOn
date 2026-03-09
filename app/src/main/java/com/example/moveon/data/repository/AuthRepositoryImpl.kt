@@ -6,6 +6,7 @@ import com.example.moveon.domain.model.User
 import com.example.moveon.domain.model.UserRole
 import com.example.moveon.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.moveon.app.data.remote.dto.DriverDto
@@ -73,6 +74,39 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun logout() {
         firebaseAuth.signOut()
+    }
+
+    override suspend fun signInWithGoogle(idToken: String): Result<User> {
+        return try {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            val result = firebaseAuth.signInWithCredential(credential).await()
+            val firebaseUser = result.user ?: throw Exception("Google sign-in failed")
+
+            val userDocRef = firebaseFirestore.collection("users").document(firebaseUser.uid)
+            val userDoc = userDocRef.get().await()
+
+            if (!userDoc.exists()) {
+                // New Google user — create a Firestore profile
+                val nameParts = firebaseUser.displayName?.split(" ") ?: emptyList()
+                val userDto = UserDto(
+                    user_id = firebaseUser.uid,
+                    first_name = nameParts.firstOrNull() ?: "",
+                    last_name = nameParts.drop(1).joinToString(" "),
+                    email = firebaseUser.email ?: "",
+                    phone_number = "",
+                    role = "User",
+                    created_at = System.currentTimeMillis()
+                )
+                userDocRef.set(userDto).await()
+                Result.success(userDto.toDomainModel())
+            } else {
+                val userDto = userDoc.toObject(UserDto::class.java)
+                    ?: throw Exception("User data not found")
+                Result.success(userDto.toDomainModel())
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun registerUser(

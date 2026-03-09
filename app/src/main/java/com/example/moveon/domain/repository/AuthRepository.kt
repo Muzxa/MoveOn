@@ -38,4 +38,6 @@ interface AuthRepository {
         vehicleId: String,
         licenseNo: String
     ): Result<User>
+
+    suspend fun signInWithGoogle(idToken: String): Result<User>
 }

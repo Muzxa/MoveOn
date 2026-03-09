@@ -37,6 +37,7 @@ class AuthViewModel @Inject constructor(
     fun onEvent(event: AuthEvent) {
         when (event) {
             is AuthEvent.Login -> login(event.email, event.password)
+            is AuthEvent.GoogleSignIn -> signInWithGoogle(event.idToken)
             is AuthEvent.RegisterUser -> registerUser(event.email, event.password, event.fName, event.lName, event.pNumber)
             is AuthEvent.RegisterProvider -> registerProvider(
                 event.email, event.password, event.fName, event.lName, event.pNumber,
@@ -112,6 +113,20 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    private fun signInWithGoogle(idToken: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.signInWithGoogle(idToken)
+                .onSuccess {
+                    _authState.value = AuthState.Success
+                    _eventFlow.emit(UiEvent.NavigateToHome)
+                }
+                .onFailure { error ->
+                    _authState.value = AuthState.Error(error.message ?: "Google sign-in failed")
+                }
+        }
+    }
+
     private fun logout() {
         viewModelScope.launch {
             authRepository.logout()
@@ -135,6 +150,7 @@ class AuthViewModel @Inject constructor(
 
 sealed class AuthEvent {
     data class Login(val email: String, val password: String) : AuthEvent()
+    data class GoogleSignIn(val idToken: String) : AuthEvent()
     data class RegisterUser(
         val email: String,
         val password: String,

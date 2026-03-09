@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -28,21 +29,50 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.moveon.util.Constants
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    onNavigateToRegister: () -> Unit = {}
+    onNavigateToRegister: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
+    val authState by viewModel.authState
+    val isLoading = authState is AuthViewModel.AuthState.Loading
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Collect one-shot navigation events
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is AuthViewModel.UiEvent.NavigateToHome -> onNavigateToHome()
+                is AuthViewModel.UiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> Unit
+            }
+        }
+    }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
                 Brush.verticalGradient(
                     listOf(
                         Color(0xFF2563EB),
@@ -110,7 +140,7 @@ fun LoginScreen(
                         .background(Color.White),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Sign In", fontWeight = FontWeight.SemiBold)
+                    Text("Sign In", fontWeight = FontWeight.SemiBold, color=Color.Gray)
                 }
 
                 Box(
@@ -206,26 +236,40 @@ fun LoginScreen(
                         onCheckedChange = { rememberMe = it }
                     )
 
-                    Text("Remember me")
+                    Text("Remember me", color=Color.Gray)
                 }
 
                 TextButton(onClick = { }) {
-                    Text("Forgot Password?")
+                    Text("Forgot Password?", color=Color.Gray)
                 }
             }
 
             // Sign In Button
             Button(
-                onClick = { },
+                onClick = { viewModel.onEvent(AuthEvent.Login(email, password)) },
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(26.dp)
             ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            // Inline error message
+            if (authState is AuthViewModel.AuthState.Error) {
                 Text(
-                    "Sign In",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = (authState as AuthViewModel.AuthState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp
                 )
             }
 
@@ -250,31 +294,46 @@ fun LoginScreen(
                 )
             }
 
-            // Social buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-
-                listOf("G", "f", "").forEach { label ->
-
-                    OutlinedButton(
-                        onClick = { },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        border = BorderStroke(1.dp, Color.LightGray),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-
-                        Text(
-                            label,
-                            fontWeight = FontWeight.Bold
-                        )
+            // Google Sign-In button
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        try {
+                            val credentialManager = CredentialManager.create(context)
+                            val googleIdOption = GetGoogleIdOption.Builder()
+                                .setFilterByAuthorizedAccounts(false)
+                                .setServerClientId(Constants.GOOGLE_WEB_CLIENT_ID)
+                                .build()
+                            val request = GetCredentialRequest.Builder()
+                                .addCredentialOption(googleIdOption)
+                                .build()
+                            val result = credentialManager.getCredential(context, request)
+                            val googleCredential =
+                                GoogleIdTokenCredential.createFrom(result.credential.data)
+                            viewModel.onEvent(AuthEvent.GoogleSignIn(googleCredential.idToken))
+                        } catch (e: GetCredentialCancellationException) {
+                            // User cancelled — no-op
+                        } catch (e: GetCredentialException) {
+                            snackbarHostState.showSnackbar("Google sign-in failed: ${e.message}")
+                        }
                     }
-                }
+                },
+                enabled = !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                border = BorderStroke(1.dp, Color.LightGray),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("G", fontWeight = FontWeight.Bold)
             }
         }
+    }
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
     }
 }
 
