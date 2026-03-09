@@ -5,11 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -17,6 +13,8 @@ import com.example.moveon.ui.Screen
 import com.example.moveon.ui.features.auth.LoginScreen
 import com.example.moveon.ui.features.auth.RegisterScreen
 import com.example.moveon.ui.features.home.HomeScreen
+import com.example.moveon.ui.features.onboarding.OnboardingScreen
+import com.example.moveon.ui.features.splash.SplashScreen
 import com.moveon.app.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -26,47 +24,67 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MoveOnTheme() {
+            MoveOnTheme {
                 val navController = rememberNavController()
 
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    NavHost(
-                        navController = navController,
-                        startDestination = Screen.Login.route,
-                        modifier = Modifier.padding(innerPadding)
-                    ) {
-                        // 1. Login Route
-                        composable(Screen.Login.route) {
-                            LoginScreen(
-                                onNavigateToHome = {
-                                    navController.navigate(Screen.Home.route) {
-                                        popUpTo(Screen.Login.route) { inclusive = true }
-                                    }
-                                },
-                                onNavigateToRegister = {
-                                    navController.navigate(Screen.Register.route)
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.Splash.route,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // 1. Splash Route
+                    composable(Screen.Splash.route) {
+                        SplashScreen(
+                            onNavigateToOnboarding = {
+                                navController.navigate(Screen.Onboarding.route) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
                                 }
-                            )
-                        }
+                            }
+                        )
+                    }
 
-                        // 2. Register Route
-                        composable(Screen.Register.route) {
-                            RegisterScreen(
-                                onNavigateToHome = {
-                                    navController.navigate(Screen.Home.route) {
-                                        popUpTo(Screen.Login.route) { inclusive = true }
-                                    }
-                                },
-                                onNavigateToLogin = {
-                                    navController.popBackStack() // Just pop back to Login
+                    // 2. Onboarding Route
+                    composable(Screen.Onboarding.route) {
+                        OnboardingScreen(
+                            onGetStarted = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Onboarding.route) { inclusive = true }
                                 }
-                            )
-                        }
+                            }
+                        )
+                    }
 
-                        // 3. Home Route
-                        composable(Screen.Home.route) {
-                            HomeScreen()
-                        }
+                    // 3. Login Route
+                    composable(Screen.Login.route) {
+                        LoginScreen(
+                            onNavigateToHome = {
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            },
+                            onNavigateToRegister = {
+                                navController.navigate(Screen.Register.route)
+                            }
+                        )
+                    }
+
+                    // 4. Register Route
+                    composable(Screen.Register.route) {
+                        RegisterScreen(
+                            onNavigateToHome = {
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            },
+                            onNavigateToLogin = {
+                                navController.popBackStack()
+                            }
+                        )
+                    }
+
+                    // 5. Home Route
+                    composable(Screen.Home.route) {
+                        HomeScreen()
                     }
                 }
             }
