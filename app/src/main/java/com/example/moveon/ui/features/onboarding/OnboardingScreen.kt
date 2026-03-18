@@ -1,5 +1,18 @@
 package com.example.moveon.ui.features.onboarding
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
@@ -94,7 +108,25 @@ private val onboardingPages = listOf(
 @Composable
 fun OnboardingScreen(onGetStarted: () -> Unit) {
     var currentPage by remember { mutableStateOf(0) }
-    val page = onboardingPages[currentPage]
+    val heroFloatTransition = rememberInfiniteTransition(label = "OnboardingHeroFloat")
+    val heroFloatOffset by heroFloatTransition.animateFloat(
+        initialValue = -2f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1800
+                -2f at 0
+                2f at 900
+                -2f at 1800
+            },
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "OnboardingHeroOffset"
+    )
+
+    fun changePage(targetPage: Int) {
+        currentPage = targetPage.coerceIn(0, onboardingPages.lastIndex)
+    }
 
     Box(
         modifier = Modifier
@@ -115,77 +147,95 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
         )
 
         // Center content
-        Column(
+        AnimatedContent(
+            targetState = currentPage,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { -it / 3 } + fadeOut())
+                } else {
+                    (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { it / 3 } + fadeOut())
+                }
+            },
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Illustration: emoji square + circular badge overlapping bottom-center
-            Box(
-                modifier = Modifier
-                    .width(128.dp)
-                    .height(168.dp)
+            label = "OnboardingContentTransition"
+        ) { pageIndex ->
+            val page = onboardingPages[pageIndex]
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Emoji tinted background square (128×128dp)
+                // Illustration: emoji square + circular badge overlapping bottom-center
                 Box(
                     modifier = Modifier
-                        .size(128.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(page.bgTint)
-                        .align(Alignment.TopCenter),
-                    contentAlignment = Alignment.Center
+                        .width(128.dp)
+                        .height(168.dp)
+                        .padding(top = (heroFloatOffset + 2f).dp)
                 ) {
-                    Text(text = page.emoji, fontSize = 60.sp)
+                    // Emoji tinted background square (128×128dp)
+                    Box(
+                        modifier = Modifier
+                            .size(128.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(page.bgTint)
+                            .align(Alignment.TopCenter),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = page.emoji, fontSize = 60.sp)
+                    }
+
+                    // Colored badge circle (64×64dp) centered, overlapping bottom of square
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .align(Alignment.BottomCenter)
+                            .scale(1f + (heroFloatOffset / 30f))
+                            .clip(CircleShape)
+                            .background(page.badgeColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = page.badgeIcon,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
 
-                // Colored badge circle (64×64dp) centered, overlapping bottom of square
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .align(Alignment.BottomCenter)
-                        .clip(CircleShape)
-                        .background(page.badgeColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = page.badgeIcon,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                Spacer(Modifier.height(32.dp))
+
+                // Title — 36sp Bold
+                Text(
+                    text = page.title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // Subtitle — 12sp SemiBold
+                Text(
+                    text = page.subtitle,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // Description — 12sp Regular gray
+                Text(
+                    text = page.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF757575),
+                    textAlign = TextAlign.Center
+                )
             }
-
-            Spacer(Modifier.height(32.dp))
-
-            // Title — 36sp Bold
-            Text(
-                text = page.title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.Black,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Subtitle — 12sp SemiBold
-            Text(
-                text = page.subtitle,
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.Black,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Description — 12sp Regular gray
-            Text(
-                text = page.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF757575),
-                textAlign = TextAlign.Center
-            )
         }
 
         // Bottom controls: indicator dots + action buttons
@@ -203,14 +253,21 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
             ) {
                 repeat(4) { i ->
                     if (i > 0) Spacer(Modifier.width(8.dp))
+                    val indicatorWidth by animateDpAsState(
+                        targetValue = if (i == currentPage) 32.dp else 8.dp,
+                        label = "IndicatorWidth$i"
+                    )
+                    val indicatorColor by animateColorAsState(
+                        targetValue = if (i == currentPage) Color(0xFF1565C0) else Color(0xFFE0E0E0),
+                        label = "IndicatorColor$i"
+                    )
+
                     Box(
                         modifier = Modifier
                             .height(8.dp)
-                            .width(if (i == currentPage) 32.dp else 8.dp)
+                            .width(indicatorWidth)
                             .clip(RoundedCornerShape(100.dp))
-                            .background(
-                                if (i == currentPage) Color(0xFF1565C0) else Color(0xFFE0E0E0)
-                            )
+                            .background(indicatorColor)
                     )
                 }
             }
@@ -218,7 +275,7 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
             // Page 0: full-width Next button only
             if (currentPage == 0) {
                 Button(
-                    onClick = { currentPage = 1 },
+                    onClick = { changePage(1) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp),
@@ -241,7 +298,7 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(
-                        onClick = { currentPage-- },
+                        onClick = { changePage(currentPage - 1) },
                         modifier = Modifier
                             .width(116.dp)
                             .height(40.dp),
@@ -261,7 +318,7 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
 
                     Button(
                         onClick = {
-                            if (currentPage < 3) currentPage++
+                            if (currentPage < 3) changePage(currentPage + 1)
                             else onGetStarted()
                         },
                         modifier = Modifier

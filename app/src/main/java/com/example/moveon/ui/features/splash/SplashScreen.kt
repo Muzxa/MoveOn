@@ -18,11 +18,17 @@ import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -34,6 +40,8 @@ fun SplashScreen(onNavigateToOnboarding: () -> Unit) {
         delay(2000L)
         onNavigateToOnboarding()
     }
+
+    val dotTransition = rememberInfiniteTransition(label = "SplashDotTransition")
 
     Box(
         modifier = Modifier
@@ -81,11 +89,42 @@ fun SplashScreen(onNavigateToOnboarding: () -> Unit) {
 
             // Three dot indicators
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                repeat(3) {
+                repeat(3) { index ->
+                    val scale = dotTransition.animateFloat(
+                        initialValue = 0.9f,
+                        targetValue = 1.2f,
+                        animationSpec = infiniteRepeatable(
+                            animation = keyframes {
+                                durationMillis = 900
+                                0.9f at (index * 120)
+                                1.2f at (250 + index * 120)
+                                0.9f at (550 + index * 120)
+                            },
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "SplashDotScale$index"
+                    )
+
+                    val alpha = dotTransition.animateFloat(
+                        initialValue = 0.35f,
+                        targetValue = 0.9f,
+                        animationSpec = infiniteRepeatable(
+                            animation = keyframes {
+                                durationMillis = 900
+                                0.35f at (index * 120)
+                                0.9f at (250 + index * 120)
+                                0.35f at (550 + index * 120)
+                            },
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "SplashDotAlpha$index"
+                    )
+
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(Color.White.copy(alpha = 0.6f), CircleShape)
+                            .scale(scale.value)
+                            .background(Color.White.copy(alpha = alpha.value), CircleShape)
                     )
                 }
             }
