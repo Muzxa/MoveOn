@@ -4,17 +4,26 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.moveon.ui.components.DashboardTab
+import com.example.moveon.ui.components.MoveOnBottomBar
+import com.example.moveon.ui.components.PlaceholderFutureScreen
 import com.example.moveon.ui.Screen
 import com.example.moveon.ui.features.auth.AuthViewModel
 import com.example.moveon.ui.features.auth.LoginScreen
 import com.example.moveon.ui.features.auth.RegisterScreen
 import com.example.moveon.ui.features.home.HomeScreen
+import com.example.moveon.ui.features.inventory.InventoryScreen
 import com.example.moveon.ui.features.onboarding.OnboardingScreen
 import com.example.moveon.ui.features.splash.SplashScreen
 import com.moveon.app.ui.theme.MoveOnTheme
@@ -28,6 +37,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             MoveOnTheme {
                 val navController = rememberNavController()
+                val navBackStackEntry = navController.currentBackStackEntryAsState().value
+                val currentRoute = navBackStackEntry?.destination?.route
+
+                val onTabSelected: (DashboardTab) -> Unit = { tab ->
+                    val route = tab.route
+                    if (currentRoute != route) {
+                        navController.navigate(route) {
+                            popUpTo(Screen.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
 
                 NavHost(
                     navController = navController,
@@ -94,10 +116,59 @@ class MainActivity : ComponentActivity() {
 
                     // 5. Home Route
                     composable(Screen.Home.route) {
-                        HomeScreen()
+                        HomeScreen(
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    // 6. Book Route (placeholder for future implementation)
+                    composable(Screen.Book.route) {
+                        BottomTabPlaceholderScreen(
+                            title = "Book",
+                            selectedTab = DashboardTab.Book,
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    // 7. Inventory Route
+                    composable(Screen.Inventory.route) {
+                        InventoryScreen(
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    // 8. Profile Route (placeholder for future implementation)
+                    composable(Screen.Profile.route) {
+                        BottomTabPlaceholderScreen(
+                            title = "Profile",
+                            selectedTab = DashboardTab.Profile,
+                            onTabSelected = onTabSelected
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BottomTabPlaceholderScreen(
+    title: String,
+    selectedTab: DashboardTab,
+    onTabSelected: (DashboardTab) -> Unit
+) {
+    Scaffold(
+        containerColor = Color(0xFFFAFAFA),
+        bottomBar = {
+            MoveOnBottomBar(selectedTab = selectedTab, onTabSelected = onTabSelected)
+        }
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            PlaceholderFutureScreen(
+                title = title,
+                modifier = Modifier
+                    .fillMaxSize()
+            )
         }
     }
 }
