@@ -2,6 +2,7 @@ package com.example.moveon.data.mapper
 
 import com.example.moveon.data.local.entities.BoxEntity
 import com.example.moveon.data.local.entities.ItemEntity
+import com.example.moveon.data.local.entities.UserSessionEntity
 import com.example.moveon.domain.model.*
 import com.moveon.app.data.remote.dto.*
 
@@ -35,6 +36,37 @@ fun User.toDto(): UserDto = UserDto(
     },
     created_at = this.createdAt,
     last_login_time = this.lastLoginTime
+)
+
+fun UserSessionEntity.toDomainModel(): User = User(
+    id = this.user_id,
+    firstName = this.first_name,
+    lastName = this.last_name,
+    email = this.email,
+    phoneNumber = this.phone_number,
+    role = when (this.role) {
+        "Provider" -> UserRole.PROVIDER
+        "Driver" -> UserRole.DRIVER
+        else -> UserRole.USER
+    },
+    createdAt = this.created_at,
+    lastLoginTime = this.last_login_time
+)
+
+fun User.toSessionEntity(): UserSessionEntity = UserSessionEntity(
+    user_id = this.id,
+    first_name = this.firstName,
+    last_name = this.lastName,
+    email = this.email,
+    phone_number = this.phoneNumber,
+    role = when (this.role) {
+        UserRole.PROVIDER -> "Provider"
+        UserRole.DRIVER -> "Driver"
+        UserRole.USER -> "User"
+    },
+    created_at = this.createdAt,
+    last_login_time = this.lastLoginTime,
+    last_synced_at = System.currentTimeMillis()
 )
 
 // Booking Mappings

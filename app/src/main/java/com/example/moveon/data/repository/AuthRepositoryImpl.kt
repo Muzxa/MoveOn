@@ -1,9 +1,10 @@
 package com.example.moveon.data.repository
 
 import com.example.moveon.data.mapper.toDomainModel
+import com.example.moveon.data.mapper.toSessionEntity
 import com.example.moveon.data.mapper.toDto
+import com.example.moveon.data.local.dao.UserSessionDao
 import com.example.moveon.domain.model.User
-import com.example.moveon.domain.model.UserRole
 import com.example.moveon.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
@@ -15,13 +16,17 @@ import com.moveon.app.data.remote.dto.UserDto
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
-    private val firebaseFirestore: FirebaseFirestore
+    private val firebaseFirestore: FirebaseFirestore,
+    private val userSessionDao: UserSessionDao
 ): AuthRepository {
+
+    override fun isUserLoggedIn(): Boolean = firebaseAuth.currentUser != null
 
     override val currentUser: Flow<User?> = callbackFlow {
         var firestoreListener: ListenerRegistration? = null
@@ -31,15 +36,25 @@ class AuthRepositoryImpl @Inject constructor(
             
             val firebaseUser = auth.currentUser
             if (firebaseUser == null) {
+                launch { userSessionDao.clearAllSessions() }
                 trySend(null)
             } else {
                 firestoreListener = firebaseFirestore.collection("users")
                     .document(firebaseUser.uid)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
+                            launch {
+                                val cachedUser = userSessionDao.getSessionById(firebaseUser.uid)
+                                if (cachedUser != null) {
+                                    trySend(cachedUser.toDomainModel())
+                                }
+                            }
                             return@addSnapshotListener
                         }
                         val user = snapshot?.toObject(UserDto::class.java)?.toDomainModel()
+                        if (user != null) {
+                            launch { userSessionDao.upsertSession(user.toSessionEntity()) }
+                        }
                         trySend(user)
                     }
             }
@@ -66,13 +81,16 @@ class AuthRepositoryImpl @Inject constructor(
             val userDto = userDoc.toObject(UserDto::class.java)
                 ?: throw Exception("User data not found")
 
-            Result.success(userDto.toDomainModel())
+            val user = userDto.toDomainModel()
+            userSessionDao.upsertSession(user.toSessionEntity())
+            Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     override suspend fun logout() {
+        userSessionDao.clearAllSessions()
         firebaseAuth.signOut()
     }
 
@@ -98,11 +116,15 @@ class AuthRepositoryImpl @Inject constructor(
                     created_at = System.currentTimeMillis()
                 )
                 userDocRef.set(userDto).await()
-                Result.success(userDto.toDomainModel())
+                val user = userDto.toDomainModel()
+                userSessionDao.upsertSession(user.toSessionEntity())
+                Result.success(user)
             } else {
                 val userDto = userDoc.toObject(UserDto::class.java)
                     ?: throw Exception("User data not found")
-                Result.success(userDto.toDomainModel())
+                val user = userDto.toDomainModel()
+                userSessionDao.upsertSession(user.toSessionEntity())
+                Result.success(user)
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -135,7 +157,9 @@ class AuthRepositoryImpl @Inject constructor(
                 .set(userDto)
                 .await()
 
-            Result.success(userDto.toDomainModel())
+            val user = userDto.toDomainModel()
+            userSessionDao.upsertSession(user.toSessionEntity())
+            Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -180,7 +204,9 @@ class AuthRepositoryImpl @Inject constructor(
                 batch.set(firebaseFirestore.collection("providers").document(firebaseUser.uid), providerDto)
             }.await()
 
-            Result.success(userDto.toDomainModel())
+            val user = userDto.toDomainModel()
+            userSessionDao.upsertSession(user.toSessionEntity())
+            Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -222,7 +248,9 @@ class AuthRepositoryImpl @Inject constructor(
                 batch.set(firebaseFirestore.collection("drivers").document(firebaseUser.uid), driverDto)
             }.await()
 
-            Result.success(userDto.toDomainModel())
+            val user = userDto.toDomainModel()
+            userSessionDao.upsertSession(user.toSessionEntity())
+            Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
         }

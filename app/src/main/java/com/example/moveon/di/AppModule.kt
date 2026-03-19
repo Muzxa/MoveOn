@@ -3,6 +3,8 @@ package com.example.moveon.di
 import android.content.Context
 import androidx.room.Room
 import com.example.moveon.data.local.MoveOnDatabase
+import com.example.moveon.data.local.dao.UserPreferences
+import com.example.moveon.data.local.dao.UserPreferencesImpl
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
@@ -23,7 +25,9 @@ object AppModule {
             context,
             MoveOnDatabase::class.java,
             "moveon_database"
-        ).build()
+        )
+            .addMigrations(MoveOnDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides
@@ -31,6 +35,14 @@ object AppModule {
 
     @Provides
     fun provideItemDao(database: MoveOnDatabase) = database.itemDao()
+
+    @Provides
+    fun provideUserSessionDao(database: MoveOnDatabase) = database.userSessionDao()
+
+    @Provides
+    @Singleton
+    fun provideUserPreferences(userPreferencesImpl: UserPreferencesImpl): UserPreferences =
+        userPreferencesImpl
 
     @Provides
     @Singleton

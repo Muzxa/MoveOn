@@ -5,11 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.moveon.ui.Screen
+import com.example.moveon.ui.features.auth.AuthViewModel
 import com.example.moveon.ui.features.auth.LoginScreen
 import com.example.moveon.ui.features.auth.RegisterScreen
 import com.example.moveon.ui.features.home.HomeScreen
@@ -34,9 +36,17 @@ class MainActivity : ComponentActivity() {
                 ) {
                     // 1. Splash Route
                     composable(Screen.Splash.route) {
+                        val authViewModel: AuthViewModel = hiltViewModel()
+
                         SplashScreen(
-                            onNavigateToOnboarding = {
-                                navController.navigate(Screen.Onboarding.route) {
+                            onResolveSession = {
+                                val targetRoute = if (authViewModel.isUserLoggedIn()) {
+                                    Screen.Home.route
+                                } else {
+                                    Screen.Onboarding.route
+                                }
+
+                                navController.navigate(targetRoute) {
                                     popUpTo(Screen.Splash.route) { inclusive = true }
                                 }
                             }

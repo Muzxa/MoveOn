@@ -1,11 +1,11 @@
 package com.example.moveon.domain.repository
 
 import com.example.moveon.domain.model.User
-import com.example.moveon.domain.model.UserRole
 import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
     val currentUser: Flow<User?>
+    fun isUserLoggedIn(): Boolean
     suspend fun login(email: String, pass: String): Result<User>
     suspend fun logout()
     
