@@ -1,6 +1,7 @@
 package com.example.moveon.ui.features.onboarding
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
@@ -12,7 +13,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,6 +55,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.moveon.ui.theme.Accent
+import com.example.moveon.ui.theme.BlueTint
+import com.example.moveon.ui.theme.GreenTint
+import com.example.moveon.ui.theme.LightBackground
+import com.example.moveon.ui.theme.LightBorder
+import com.example.moveon.ui.theme.LightTextPrimary
+import com.example.moveon.ui.theme.LightTextSecondary
+import com.example.moveon.ui.theme.OrangeTint
+import com.example.moveon.ui.theme.Primary
+import com.example.moveon.ui.theme.PurpleTint
+import com.example.moveon.ui.theme.Success
+import com.example.moveon.ui.theme.Tertiary
 
 private data class OnboardingPageData(
     val emoji: String,
@@ -70,8 +82,8 @@ private val onboardingPages = listOf(
     OnboardingPageData(
         emoji = "🚚",
         badgeIcon = Icons.Outlined.LocalShipping,
-        badgeColor = Color(0xFF1565C0),
-        bgTint = Color(0xFF1565C0).copy(alpha = 0.08f),
+        badgeColor = Primary,
+        bgTint = BlueTint,
         title = "MoveOn",
         subtitle = "Your single pane of glass for moving",
         description = "Book verified transport and manage your entire move from one powerful app."
@@ -79,8 +91,8 @@ private val onboardingPages = listOf(
     OnboardingPageData(
         emoji = "📍",
         badgeIcon = Icons.Outlined.LocationOn,
-        badgeColor = Color(0xFFFF6F00),
-        bgTint = Color(0xFFFF6F00).copy(alpha = 0.08f),
+        badgeColor = Accent,
+        bgTint = OrangeTint,
         title = "Fixed-Rate Prices",
         subtitle = "Because who has time for haggling?",
         description = "Find the right truck for your move. Track your driver in real time with GPS and follow the journey stress-free."
@@ -88,8 +100,8 @@ private val onboardingPages = listOf(
     OnboardingPageData(
         emoji = "📦",
         badgeIcon = Icons.Outlined.QrCode2,
-        badgeColor = Color(0xFF2E7D32),
-        bgTint = Color(0xFF2E7D32).copy(alpha = 0.08f),
+        badgeColor = Success,
+        bgTint = GreenTint,
         title = "Smart Inventory System",
         subtitle = "Never lose track of your belongings",
         description = "Scan the QR codes on your boxes and let smart tech identify what's inside. Check your digital inventory anytime, anywhere."
@@ -97,8 +109,8 @@ private val onboardingPages = listOf(
     OnboardingPageData(
         emoji = "🤖",
         badgeIcon = Icons.Outlined.AutoAwesome,
-        badgeColor = Color(0xFF7C4DFF),
-        bgTint = Color(0xFF7C4DFF).copy(alpha = 0.08f),
+        badgeColor = Tertiary,
+        bgTint = PurpleTint,
         title = "AI-Powered Estimation",
         subtitle = "Know before you go",
         description = "Point your camera at the room and let smart tech estimate the boxes you'll need. We'll even suggest the right truck size."
@@ -108,6 +120,8 @@ private val onboardingPages = listOf(
 @Composable
 fun OnboardingScreen(onGetStarted: () -> Unit) {
     var currentPage by remember { mutableStateOf(0) }
+    val page = onboardingPages[currentPage]
+
     val heroFloatTransition = rememberInfiniteTransition(label = "OnboardingHeroFloat")
     val heroFloatOffset by heroFloatTransition.animateFloat(
         initialValue = -2f,
@@ -131,13 +145,12 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFAFA))
+            .background(LightBackground)
     ) {
-        // Skip button — top right
         Text(
             text = "Skip",
             style = MaterialTheme.typography.labelMedium,
-            color = Color.Black.copy(alpha = 0.6f),
+            color = LightTextSecondary,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 48.dp, end = 24.dp)
@@ -146,7 +159,6 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                 .padding(horizontal = 8.dp, vertical = 6.dp)
         )
 
-        // Center content
         AnimatedContent(
             targetState = currentPage,
             transitionSpec = {
@@ -162,20 +174,14 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                 .align(Alignment.Center)
                 .padding(horizontal = 24.dp),
             label = "OnboardingContentTransition"
-        ) { pageIndex ->
-            val page = onboardingPages[pageIndex]
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Illustration: emoji square + circular badge overlapping bottom-center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
                         .width(128.dp)
                         .height(168.dp)
                         .padding(top = (heroFloatOffset + 2f).dp)
                 ) {
-                    // Emoji tinted background square (128×128dp)
                     Box(
                         modifier = Modifier
                             .size(128.dp)
@@ -187,7 +193,6 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                         Text(text = page.emoji, fontSize = 60.sp)
                     }
 
-                    // Colored badge circle (64×64dp) centered, overlapping bottom of square
                     Box(
                         modifier = Modifier
                             .size(64.dp)
@@ -200,7 +205,7 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                         Icon(
                             imageVector = page.badgeIcon,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -208,60 +213,54 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
 
                 Spacer(Modifier.height(32.dp))
 
-                // Title — 36sp Bold
                 Text(
                     text = page.title,
                     style = MaterialTheme.typography.headlineLarge,
-                    color = Color.Black,
+                    color = LightTextPrimary,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(Modifier.height(8.dp))
 
-                // Subtitle — 12sp SemiBold
                 Text(
                     text = page.subtitle,
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color.Black,
+                    color = LightTextPrimary,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(Modifier.height(8.dp))
 
-                // Description — 12sp Regular gray
                 Text(
                     text = page.description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF757575),
+                    color = LightTextSecondary,
                     textAlign = TextAlign.Center
                 )
             }
         }
 
-        // Bottom controls: indicator dots + action buttons
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Page indicator dots
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(4) { i ->
+                repeat(onboardingPages.size) { i ->
                     if (i > 0) Spacer(Modifier.width(8.dp))
                     val indicatorWidth by animateDpAsState(
                         targetValue = if (i == currentPage) 32.dp else 8.dp,
                         label = "IndicatorWidth$i"
                     )
                     val indicatorColor by animateColorAsState(
-                        targetValue = if (i == currentPage) Color(0xFF1565C0) else Color(0xFFE0E0E0),
+                        targetValue = if (i == currentPage) Primary else LightBorder,
                         label = "IndicatorColor$i"
                     )
-
                     Box(
                         modifier = Modifier
                             .height(8.dp)
@@ -272,7 +271,6 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                 }
             }
 
-            // Page 0: full-width Next button only
             if (currentPage == 0) {
                 Button(
                     onClick = { changePage(1) },
@@ -280,18 +278,17 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                         .fillMaxWidth()
                         .height(40.dp),
                     shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
                 ) {
                     Text(
-                        text = "Next  \u203A",
+                        text = "Next  ›",
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             } else {
-                // Pages 1–3: Back + Next (or Get Started on last page)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -304,10 +301,10 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
                             .height(40.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0xFFFAFAFA),
-                            contentColor = Color(0xFF1C1B1F)
+                            containerColor = LightBackground,
+                            contentColor = LightTextPrimary
                         ),
-                        border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                        border = BorderStroke(1.dp, LightBorder),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
                     ) {
                         Text(
@@ -318,21 +315,24 @@ fun OnboardingScreen(onGetStarted: () -> Unit) {
 
                     Button(
                         onClick = {
-                            if (currentPage < 3) changePage(currentPage + 1)
-                            else onGetStarted()
+                            if (currentPage < onboardingPages.lastIndex) {
+                                changePage(currentPage + 1)
+                            } else {
+                                onGetStarted()
+                            }
                         },
                         modifier = Modifier
                             .weight(1f)
                             .height(40.dp),
                         shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
                     ) {
                         Text(
-                            text = if (currentPage < 3) "Next  \u203A" else "Get Started  \u203A",
+                            text = if (currentPage < onboardingPages.lastIndex) "Next  ›" else "Get Started  ›",
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }

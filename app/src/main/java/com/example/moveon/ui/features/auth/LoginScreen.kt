@@ -34,6 +34,11 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.moveon.ui.theme.LightBackground
+import com.example.moveon.ui.theme.LightBorderLight
+import com.example.moveon.ui.theme.LightSurface
+import com.example.moveon.ui.theme.LightTextSecondary
+import com.example.moveon.ui.theme.Primary
 import com.example.moveon.util.Constants
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -87,8 +92,8 @@ fun LoginScreen(
                 .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFF2563EB),
-                        Color(0xFF1E40AF)
+                        Primary,
+                        Primary.copy(alpha = 0.8f)
                     )
                 )
             )
@@ -106,20 +111,20 @@ fun LoginScreen(
                 text = "MoveOn",
                 fontSize = 34.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onPrimary
             )
 
             Text(
                 text = "Welcome Back!",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onPrimary
             )
 
             Text(
                 text = "Sign in to continue your journey",
                 fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
             )
         }
 
@@ -128,7 +133,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(Color(0xFFF8FAFC))
+                .background(LightBackground)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -140,7 +145,7 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(46.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE5E7EB))
+                    .background(LightBorderLight)
                     .padding(4.dp)
             ) {
 
@@ -149,10 +154,10 @@ fun LoginScreen(
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color.White),
+                        .background(LightSurface),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Sign In", fontWeight = FontWeight.SemiBold, color=Color.Gray)
+                    Text("Sign In", fontWeight = FontWeight.SemiBold, color = LightTextSecondary)
                 }
 
                 Box(
@@ -162,7 +167,7 @@ fun LoginScreen(
                         .clickable { onNavigateToRegister() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Sign Up", color = Color.Gray)
+                    Text("Sign Up", color = LightTextSecondary)
                 }
             }
 
@@ -248,11 +253,11 @@ fun LoginScreen(
                         onCheckedChange = { rememberMe = it }
                     )
 
-                    Text("Remember me", color=Color.Gray)
+                    Text("Remember me", color = LightTextSecondary)
                 }
 
                 TextButton(onClick = { }) {
-                    Text("Forgot Password?", color=Color.Gray)
+                    Text("Forgot Password?", color = LightTextSecondary)
                 }
             }
 
@@ -267,7 +272,7 @@ fun LoginScreen(
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(24.dp),
                         strokeWidth = 2.dp
                     )
@@ -298,7 +303,7 @@ fun LoginScreen(
 
                 Text(
                     "Or continue with",
-                    color = Color.Gray
+                    color = LightTextSecondary
                 )
 
                 HorizontalDivider(

@@ -45,6 +45,14 @@ import com.example.moveon.ui.components.MoveOnPillButton
 import com.example.moveon.ui.components.MoveOnStatCard
 import com.example.moveon.ui.components.QrIcon
 import com.example.moveon.ui.components.iconSpec
+import com.example.moveon.ui.theme.Accent
+import com.example.moveon.ui.theme.LightBackground
+import com.example.moveon.ui.theme.LightBorder
+import com.example.moveon.ui.theme.LightSurface
+import com.example.moveon.ui.theme.LightSurfaceVariant
+import com.example.moveon.ui.theme.LightTextPrimary
+import com.example.moveon.ui.theme.LightTextSecondary
+import com.example.moveon.ui.theme.Primary
 
 private data class PackedBoxUi(
     val code: String,
@@ -80,7 +88,7 @@ fun InventoryScreen(
     )
 
     Scaffold(
-        containerColor = Color(0xFFFAFAFA),
+        containerColor = LightBackground,
         bottomBar = {
             MoveOnBottomBar(
                 selectedTab = DashboardTab.Inventory,
@@ -100,12 +108,12 @@ fun InventoryScreen(
                 Text(
                     text = "Your Inventory",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = Color(0xFF1C1B1F)
+                    color = LightTextPrimary
                 )
                 Text(
                     text = "Digital tracking for your move",
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFF757575)
+                    color = LightTextSecondary
                 )
                 Spacer(Modifier.height(12.dp))
 
@@ -116,7 +124,7 @@ fun InventoryScreen(
                         value = "8",
                         label = "Fragile",
                         modifier = Modifier.weight(1f),
-                        valueColor = Color(0xFFFF6F00)
+                        valueColor = Accent
                     )
                 }
 
@@ -131,13 +139,13 @@ fun InventoryScreen(
                         text = "Scan Box",
                         onClick = onScanBoxClick,
                         modifier = Modifier.weight(1f),
-                        background = Color(0xFFFF6F00)
+                        background = Accent
                     )
                     MoveOnPillButton(
                         text = "Add Box",
                         onClick = onAddBoxClick,
                         modifier = Modifier.weight(1f),
-                        background = Color(0xFF1565C0)
+                        background = Primary
                     )
                 }
             }
@@ -147,7 +155,7 @@ fun InventoryScreen(
                 Text(
                     text = "Packed Boxes",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = Color(0xFF1C1B1F)
+                    color = LightTextPrimary
                 )
             }
 
@@ -160,7 +168,7 @@ fun InventoryScreen(
                 Text(
                     text = "Unpacked Boxes",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = Color(0xFF1C1B1F)
+                    color = LightTextPrimary
                 )
             }
 
@@ -181,21 +189,21 @@ private fun SearchBarPlaceholder() {
         modifier = Modifier
             .fillMaxWidth()
             .height(36.dp)
-            .background(Color(0xFFF5F5F5), RoundedCornerShape(10.dp))
+            .background(LightSurfaceVariant, RoundedCornerShape(10.dp))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Outlined.Search,
             contentDescription = null,
-            tint = Color(0xFF757575),
+            tint = LightTextSecondary,
             modifier = Modifier.size(16.dp)
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = "Search boxes or items...",
             style = MaterialTheme.typography.labelLarge,
-            color = Color(0xFF757575)
+            color = LightTextSecondary
         )
     }
 }
@@ -204,8 +212,8 @@ private fun SearchBarPlaceholder() {
 private fun PackedBoxCard(box: PackedBoxUi) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+        colors = CardDefaults.cardColors(containerColor = LightSurface),
+        border = BorderStroke(1.dp, LightBorder),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -235,18 +243,18 @@ private fun PackedBoxCard(box: PackedBoxUi) {
                         Text(
                             text = box.code,
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color(0xFF1C1B1F)
+                            color = LightTextPrimary
                         )
                         Text(
                             text = "${toTitle(box.category)} • ${box.volume}",
                             style = MaterialTheme.typography.labelLarge,
-                            color = Color(0xFF757575)
+                            color = LightTextSecondary
                         )
                     }
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,
                         contentDescription = null,
-                        tint = Color(0xFF757575),
+                        tint = LightTextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -261,19 +269,19 @@ private fun PackedBoxCard(box: PackedBoxUi) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
                             modifier = Modifier
-                                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(10.dp))
+                                .border(1.dp, LightBorder, RoundedCornerShape(10.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "${box.itemCount} items",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF1C1B1F)
+                                color = LightTextPrimary
                             )
                         }
                         Text(
                             text = box.updatedAt,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF757575),
+                            color = LightTextSecondary,
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -281,7 +289,7 @@ private fun PackedBoxCard(box: PackedBoxUi) {
                     Icon(
                         imageVector = Icons.Outlined.ChevronRight,
                         contentDescription = null,
-                        tint = Color(0xFF757575),
+                        tint = LightTextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -295,8 +303,8 @@ private fun UnpackedBoxCard(box: UnpackedBoxUi) {
     val spec = box.category.iconSpec()
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+        colors = CardDefaults.cardColors(containerColor = LightSurface),
+        border = BorderStroke(1.dp, LightBorder),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -320,19 +328,19 @@ private fun UnpackedBoxCard(box: UnpackedBoxUi) {
                 Text(
                     text = box.code,
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFF1C1B1F)
+                    color = LightTextPrimary
                 )
                 Text(
                     text = toTitle(box.category),
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color(0xFF757575)
+                    color = LightTextSecondary
                 )
             }
 
             Icon(
                 imageVector = Icons.Outlined.ChevronRight,
                 contentDescription = null,
-                tint = Color(0xFF757575),
+                tint = LightTextSecondary,
                 modifier = Modifier.size(18.dp)
             )
         }
