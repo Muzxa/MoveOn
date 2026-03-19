@@ -9,4 +9,5 @@ interface InventoryRepository {
     fun getBoxesForMove(bookingId: String): Flow<List<Box>>
     fun getItemsInBox(boxId: String): Flow<List<Item>>
     suspend fun addItemToInventory(item: Item)
+    suspend fun getTotalBoxesCount(): Int
 }

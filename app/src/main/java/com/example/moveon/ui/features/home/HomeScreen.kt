@@ -48,6 +48,7 @@ import coil.compose.AsyncImage
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
 import com.example.moveon.ui.components.MoveOnPillButton
+import com.example.moveon.ui.components.MoveOnProfileAvatar
 
 @Composable
 fun HomeScreen(
@@ -91,7 +92,7 @@ fun HomeScreen(
                     )
                 }
 
-                ProfileAvatar(
+                MoveOnProfileAvatar(
                     photoUrl = state.profilePhotoUrl,
                     initials = state.profileInitials
                 )
@@ -169,37 +170,6 @@ fun HomeScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-@Composable
-private fun ProfileAvatar(
-    photoUrl: String?,
-    initials: String
-) {
-    val shape = CircleShape
-    if (!photoUrl.isNullOrBlank()) {
-        AsyncImage(
-            model = photoUrl,
-            contentDescription = "Profile photo",
-            modifier = Modifier
-                .size(48.dp)
-                .clip(shape)
-                .border(1.dp, Color(0x331565C0), shape)
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(Color(0x1A1565C0), shape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = initials,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF1565C0)
-            )
         }
     }
 }

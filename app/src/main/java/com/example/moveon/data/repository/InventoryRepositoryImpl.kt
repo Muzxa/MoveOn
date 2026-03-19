@@ -34,4 +34,8 @@ class InventoryRepositoryImpl @Inject constructor(
     override suspend fun addItemToInventory(item: Item) {
         itemDao.insertItem(item.toEntity())
     }
+
+    override suspend fun getTotalBoxesCount(): Int {
+        return boxDao.getTotalBoxesCount()
+    }
 }

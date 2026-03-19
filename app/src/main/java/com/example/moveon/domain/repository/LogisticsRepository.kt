@@ -9,6 +9,7 @@ interface LogisticsRepository {
     suspend fun getMarketplaceProviders(): List<Provider>
     suspend fun confirmBooking(booking: Booking)
     suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean
+    suspend fun getBookingsForUser(userId: String): Result<List<Booking>>
     suspend fun getCurrentBookingForUser(userId: String): Result<Booking?>
     //fun trackVehicleLocation(vehicleId: String): Flow<LatLng>
 }

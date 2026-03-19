@@ -25,6 +25,7 @@ import com.example.moveon.ui.features.auth.RegisterScreen
 import com.example.moveon.ui.features.home.HomeScreen
 import com.example.moveon.ui.features.inventory.InventoryScreen
 import com.example.moveon.ui.features.onboarding.OnboardingScreen
+import com.example.moveon.ui.features.profile.ProfileScreen
 import com.example.moveon.ui.features.splash.SplashScreen
 import com.moveon.app.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -141,12 +142,17 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 8. Profile Route (placeholder for future implementation)
+                    // 8. Profile Route
                     composable(Screen.Profile.route) {
-                        BottomTabPlaceholderScreen(
-                            title = "Profile",
-                            selectedTab = DashboardTab.Profile,
-                            onTabSelected = onTabSelected
+                        ProfileScreen(
+                            onTabSelected = onTabSelected,
+                            onNavigateToLogin = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        inclusive = true
+                                    }
+                                }
+                            }
                         )
                     }
                 }

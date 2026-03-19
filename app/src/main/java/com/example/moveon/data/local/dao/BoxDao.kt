@@ -19,6 +19,9 @@ interface BoxDao{
     @Query("SELECT * FROM boxes WHERE booking_id = :bookingId")
     fun getBoxesForBooking(bookingId: Int): Flow<List<BoxEntity>>
 
+    @Query("SELECT COUNT(*) FROM boxes")
+    suspend fun getTotalBoxesCount(): Int
+
     @Delete
     suspend fun deleteBox(box: BoxEntity)
 }
