@@ -95,7 +95,7 @@ fun SplashScreen(onResolveSession: () -> Unit) {
                         targetValue = 1.2f,
                         animationSpec = infiniteRepeatable(
                             animation = keyframes {
-                                durationMillis = 900
+                                durationMillis = 2000
                                 0.9f at (index * 120)
                                 1.2f at (250 + index * 120)
                                 0.9f at (550 + index * 120)
@@ -110,7 +110,7 @@ fun SplashScreen(onResolveSession: () -> Unit) {
                         targetValue = 0.9f,
                         animationSpec = infiniteRepeatable(
                             animation = keyframes {
-                                durationMillis = 900
+                                durationMillis = 2000
                                 0.35f at (index * 120)
                                 0.9f at (250 + index * 120)
                                 0.35f at (550 + index * 120)
