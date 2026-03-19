@@ -27,7 +27,7 @@ import com.example.moveon.ui.features.inventory.InventoryScreen
 import com.example.moveon.ui.features.onboarding.OnboardingScreen
 import com.example.moveon.ui.features.profile.ProfileScreen
 import com.example.moveon.ui.features.splash.SplashScreen
-import com.moveon.app.ui.theme.MoveOnTheme
+import com.example.moveon.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

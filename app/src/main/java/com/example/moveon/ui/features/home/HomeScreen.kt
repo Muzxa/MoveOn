@@ -49,6 +49,17 @@ import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
 import com.example.moveon.ui.components.MoveOnPillButton
 import com.example.moveon.ui.components.MoveOnProfileAvatar
+import com.example.moveon.ui.theme.Accent
+import com.example.moveon.ui.theme.BlueTint
+import com.example.moveon.ui.theme.Error
+import com.example.moveon.ui.theme.GreenTint
+import com.example.moveon.ui.theme.LightBackground
+import com.example.moveon.ui.theme.LightBorder
+import com.example.moveon.ui.theme.LightSurface
+import com.example.moveon.ui.theme.LightTextPrimary
+import com.example.moveon.ui.theme.LightTextSecondary
+import com.example.moveon.ui.theme.Primary
+import com.example.moveon.ui.theme.Success
 
 @Composable
 fun HomeScreen(
@@ -59,7 +70,7 @@ fun HomeScreen(
     val state = viewModel.homeState.value
 
     Scaffold(
-        containerColor = Color(0xFFFAFAFA),
+        containerColor = LightBackground,
         bottomBar = {
             MoveOnBottomBar(
                 selectedTab = DashboardTab.Home,
@@ -83,12 +94,12 @@ fun HomeScreen(
                     Text(
                         text = "Welcome",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF757575)
+                        color = LightTextSecondary
                     )
                     Text(
                         text = state.profileName,
                         style = MaterialTheme.typography.headlineSmall,
-                        color = Color(0xFF1C1B1F)
+                        color = LightTextPrimary
                     )
                 }
 
@@ -129,7 +140,7 @@ fun HomeScreen(
             Text(
                 text = "Quick Actions",
                 style = MaterialTheme.typography.headlineMedium,
-                color = Color(0xFF1C1B1F)
+                color = LightTextPrimary
             )
 
             Spacer(Modifier.height(10.dp))
@@ -138,15 +149,15 @@ fun HomeScreen(
                 QuickActionCard(
                     title = "Scan Box",
                     icon = Icons.Outlined.QrCode2,
-                    tint = Color(0xFFFF6F00),
-                    bg = Color(0x1AFF6F00),
+                    tint = Accent,
+                    bg = BlueTint,
                     modifier = Modifier.weight(1f)
                 )
                 QuickActionCard(
                     title = "New Move",
                     icon = Icons.Outlined.LocalShipping,
-                    tint = Color(0xFF1565C0),
-                    bg = Color(0x1A1565C0),
+                    tint = Primary,
+                    bg = BlueTint,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -157,15 +168,15 @@ fun HomeScreen(
                 QuickActionCard(
                     title = "My Moves",
                     icon = Icons.AutoMirrored.Outlined.PlaylistAddCheck,
-                    tint = Color(0xFF1565C0),
-                    bg = Color(0x1A1565C0),
+                    tint = Primary,
+                    bg = BlueTint,
                     modifier = Modifier.weight(1f)
                 )
                 QuickActionCard(
                     title = "Room Scan",
                     icon = Icons.Outlined.AutoAwesome,
-                    tint = Color(0xFF2E7D32),
-                    bg = Color(0x1A2E7D32),
+                    tint = Success,
+                    bg = GreenTint,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -179,8 +190,8 @@ private fun LoadingMoveCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0x331565C0))
+        colors = CardDefaults.cardColors(containerColor = LightSurface),
+        border = BorderStroke(1.dp, Primary.copy(alpha = 0.2f))
     ) {
         Row(
             modifier = Modifier
@@ -192,12 +203,12 @@ private fun LoadingMoveCard() {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
                 strokeWidth = 2.dp,
-                color = Color(0xFF1565C0)
+                color = Primary
             )
             Text(
                 text = "Loading your active move...",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF1C1B1F)
+                color = LightTextPrimary
             )
         }
     }
@@ -211,8 +222,8 @@ private fun ErrorMoveCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0x33EF4444))
+        colors = CardDefaults.cardColors(containerColor = LightSurface),
+        border = BorderStroke(1.dp, Error.copy(alpha = 0.2f))
     ) {
         Column(
             modifier = Modifier
@@ -223,12 +234,12 @@ private fun ErrorMoveCard(
             Text(
                 text = "Could not load move details",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF1C1B1F)
+                color = LightTextPrimary
             )
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF757575)
+                color = LightTextSecondary
             )
             MoveOnPillButton(text = "Retry", onClick = onRetry, modifier = Modifier.fillMaxWidth())
         }
@@ -242,8 +253,8 @@ private fun EmptyMoveCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0x331565C0))
+        colors = CardDefaults.cardColors(containerColor = LightSurface),
+        border = BorderStroke(1.dp, Primary.copy(alpha = 0.2f))
     ) {
         Column(
             modifier = Modifier
@@ -254,18 +265,18 @@ private fun EmptyMoveCard(
             Text(
                 text = "No active move right now",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF1C1B1F)
+                color = LightTextPrimary
             )
             Text(
                 text = "You currently have nothing to move. Start by organizing your inventory.",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF757575)
+                color = LightTextSecondary
             )
             MoveOnPillButton(
                 text = "Manage Inventory",
                 onClick = onManageInventoryClick,
                 modifier = Modifier.fillMaxWidth(),
-                background = Color(0xFF1565C0)
+                background = Primary
             )
         }
     }
@@ -278,10 +289,10 @@ private fun ActiveMoveCard(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = LightSurface),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0x331565C0), RoundedCornerShape(16.dp))
+            .border(1.dp, Primary.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
     ) {
         Column {
             Column(
@@ -289,7 +300,7 @@ private fun ActiveMoveCard(
                     .fillMaxWidth()
                     .background(
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF1565C0), Color(0xFF1976D2))
+                            colors = listOf(Primary, Primary.copy(alpha = 0.7f))
                         )
                     )
                     .padding(16.dp)
@@ -298,20 +309,20 @@ private fun ActiveMoveCard(
                     Icon(
                         imageVector = Icons.Outlined.LocalShipping,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Move #${move.moveId}",
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
                 Text(
                     text = move.providerLabel,
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
@@ -325,13 +336,13 @@ private fun ActiveMoveCard(
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color(0xFFE8F4FD), CircleShape),
+                            .background(Primary.copy(alpha = 0.15f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.AccessTime,
                             contentDescription = null,
-                            tint = Color(0xFF1565C0),
+                            tint = Primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -340,24 +351,24 @@ private fun ActiveMoveCard(
                         Text(
                             text = "Estimated Arrival",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF757575)
+                            color = LightTextSecondary
                         )
                         Text(
                             text = move.etaLabel,
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color(0xFF1C1B1F)
+                            color = LightTextPrimary
                         )
                     }
                     Spacer(Modifier.weight(1f))
                     Box(
                         modifier = Modifier
-                            .background(Color(0x141565C0), RoundedCornerShape(100.dp))
+                            .background(BlueTint, RoundedCornerShape(100.dp))
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = move.statusLabel,
                             style = MaterialTheme.typography.labelLarge,
-                            color = Color(0xFF1565C0)
+                            color = Primary
                         )
                     }
                 }
@@ -395,32 +406,32 @@ private fun AddressTimeline(
                 Box(
                     modifier = Modifier
                         .size(12.dp)
-                        .background(Color(0xFF1565C0), CircleShape)
+                        .background(Primary, CircleShape)
                 )
                 Box(
                     modifier = Modifier
                         .width(2.dp)
                         .height(26.dp)
-                        .background(Color(0xFFE0E0E0))
+                        .background(LightBorder)
                 )
             }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Pickup", style = MaterialTheme.typography.bodySmall, color = Color(0xFF757575))
-                Text(pickup, style = MaterialTheme.typography.labelLarge, color = Color(0xFF1C1B1F))
+                Text("Pickup", style = MaterialTheme.typography.bodySmall, color = LightTextSecondary)
+                Text(pickup, style = MaterialTheme.typography.labelLarge, color = LightTextPrimary)
             }
         }
         Row(verticalAlignment = Alignment.Top) {
             Box(
                 modifier = Modifier
                     .size(12.dp)
-                    .background(Color.White, CircleShape)
-                    .border(1.dp, Color(0xFF1565C0), CircleShape)
+                    .background(LightSurface, CircleShape)
+                    .border(1.dp, Primary, CircleShape)
             )
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Drop-off", style = MaterialTheme.typography.bodySmall, color = Color(0xFF757575))
-                Text(dropOff, style = MaterialTheme.typography.labelLarge, color = Color(0xFF1C1B1F))
+                Text("Drop-off", style = MaterialTheme.typography.bodySmall, color = LightTextSecondary)
+                Text(dropOff, style = MaterialTheme.typography.labelLarge, color = LightTextPrimary)
             }
         }
     }
@@ -437,8 +448,8 @@ private fun QuickActionCard(
     Card(
         modifier = modifier.height(110.dp),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA)),
-        border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+        colors = CardDefaults.cardColors(containerColor = LightBackground),
+        border = BorderStroke(1.dp, LightBorder)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -458,7 +469,7 @@ private fun QuickActionCard(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1C1B1F),
+                color = LightTextPrimary,
                 textAlign = TextAlign.Center
             )
         }

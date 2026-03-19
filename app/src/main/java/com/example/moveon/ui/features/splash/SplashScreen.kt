@@ -32,6 +32,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.moveon.ui.theme.GlassWhiteLight
+import com.example.moveon.ui.theme.GlassWhiteMedium
+import com.example.moveon.ui.theme.Primary
 import kotlinx.coroutines.delay
 
 @Composable
@@ -48,7 +51,7 @@ fun SplashScreen(onResolveSession: () -> Unit) {
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1565C0), Color(0xFF1976D2))
+                    colors = listOf(Primary, Primary.copy(alpha = 0.75f))
                 )
             )
     ) {
@@ -61,10 +64,10 @@ fun SplashScreen(onResolveSession: () -> Unit) {
                 modifier = Modifier
                     .size(96.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color.White.copy(alpha = 0.1f))
+                    .background(GlassWhiteLight)
                     .border(
                         width = 1.dp,
-                        color = Color.White.copy(alpha = 0.2f),
+                        color = GlassWhiteMedium,
                         shape = RoundedCornerShape(24.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -72,7 +75,7 @@ fun SplashScreen(onResolveSession: () -> Unit) {
                 Icon(
                     imageVector = Icons.Outlined.LocalShipping,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(48.dp)
                 )
             }
@@ -82,7 +85,7 @@ fun SplashScreen(onResolveSession: () -> Unit) {
             Text(
                 text = "MoveOn",
                 style = MaterialTheme.typography.headlineLarge,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onPrimary
             )
 
             Spacer(Modifier.height(32.dp))
@@ -124,7 +127,7 @@ fun SplashScreen(onResolveSession: () -> Unit) {
                         modifier = Modifier
                             .size(8.dp)
                             .scale(scale.value)
-                            .background(Color.White.copy(alpha = alpha.value), CircleShape)
+                            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = alpha.value), CircleShape)
                     )
                 }
             }
@@ -134,7 +137,7 @@ fun SplashScreen(onResolveSession: () -> Unit) {
         Text(
             text = "Version 1.0.0",
             style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = 0.4f),
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.4f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 48.dp)

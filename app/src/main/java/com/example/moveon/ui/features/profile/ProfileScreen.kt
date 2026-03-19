@@ -43,6 +43,12 @@ import com.example.moveon.ui.components.MoveOnBottomBar
 import com.example.moveon.ui.components.MoveOnProfileActionRowItem
 import com.example.moveon.ui.components.MoveOnProfileHeaderCard
 import com.example.moveon.ui.components.MoveOnStatCard
+import com.example.moveon.ui.theme.ErrorDeep
+import com.example.moveon.ui.theme.LightBackground
+import com.example.moveon.ui.theme.LightBorder
+import com.example.moveon.ui.theme.LightSurface
+import com.example.moveon.ui.theme.LightTextSecondary
+import com.example.moveon.ui.theme.Success
 
 @Composable
 fun ProfileScreen(
@@ -61,7 +67,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFFFAFAFA),
+        containerColor = LightBackground,
         bottomBar = {
             MoveOnBottomBar(
                 selectedTab = DashboardTab.Profile,
@@ -103,7 +109,7 @@ fun ProfileScreen(
                     value = if (state.averageRating <= 0f) "--" else String.format("%.1f", state.averageRating),
                     label = "Rating",
                     modifier = Modifier.weight(1f),
-                    valueColor = Color(0xFF2E7D32)
+                    valueColor = Success
                 )
             }
 
@@ -123,7 +129,7 @@ fun ProfileScreen(
                 text = "Account",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF757575),
+                color = LightTextSecondary,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
 
@@ -132,8 +138,8 @@ fun ProfileScreen(
             // Account Actions Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                colors = CardDefaults.cardColors(containerColor = LightSurface),
+                border = BorderStroke(1.dp, LightBorder),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column {
@@ -171,7 +177,7 @@ fun ProfileScreen(
                 text = "Preferences",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF757575),
+                color = LightTextSecondary,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
 
@@ -180,8 +186,8 @@ fun ProfileScreen(
             // Preferences Actions Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                colors = CardDefaults.cardColors(containerColor = LightSurface),
+                border = BorderStroke(1.dp, LightBorder),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column {
@@ -208,7 +214,7 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                border = BorderStroke(2.dp, Color(0xFFD32F2F)),
+                border = BorderStroke(2.dp, ErrorDeep),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Row(
@@ -219,13 +225,13 @@ fun ProfileScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Logout,
                         contentDescription = "Logout",
-                        tint = Color(0xFFD32F2F),
+                        tint = ErrorDeep,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.padding(horizontal = 8.dp))
                     Text(
                         text = if (state.isLoading) "Loading..." else "Logout",
-                        color = Color(0xFFD32F2F),
+                        color = ErrorDeep,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
