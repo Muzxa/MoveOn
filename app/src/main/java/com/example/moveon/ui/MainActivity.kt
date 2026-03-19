@@ -11,9 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
@@ -37,14 +37,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             MoveOnTheme {
                 val navController = rememberNavController()
-                val navBackStackEntry = navController.currentBackStackEntryAsState().value
-                val currentRoute = navBackStackEntry?.destination?.route
 
                 val onTabSelected: (DashboardTab) -> Unit = { tab ->
                     val route = tab.route
+                    val currentRoute = navController.currentBackStackEntry?.destination?.route
                     if (currentRoute != route) {
                         navController.navigate(route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
                             launchSingleTop = true
                             restoreState = true
                         }
@@ -119,9 +120,7 @@ class MainActivity : ComponentActivity() {
                         HomeScreen(
                             onTabSelected = onTabSelected,
                             onManageInventoryClick = {
-                                navController.navigate(Screen.Inventory.route) {
-                                    launchSingleTop = true
-                                }
+                                onTabSelected(DashboardTab.Inventory)
                             }
                         )
                     }
