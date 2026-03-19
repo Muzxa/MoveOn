@@ -2,6 +2,7 @@ package com.example.moveon.data.repository
 
 import com.example.moveon.data.mapper.toDomainModel
 import com.example.moveon.data.mapper.toDto
+import com.example.moveon.domain.model.BookingStatus
 import com.example.moveon.data.remote.FirebaseService
 import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.Provider
@@ -25,5 +26,14 @@ class LogisticsRepositoryImpl @Inject constructor(
 
     override suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean {
         return true
+    }
+
+    override suspend fun getCurrentBookingForUser(userId: String): Result<Booking?> {
+        return runCatching {
+            firebaseService.getBookingsForUser(userId)
+                .map { it.toDomainModel() }
+                .filter { it.status != BookingStatus.COMPLETED }
+                .maxByOrNull { it.createdAt }
+        }
     }
 }

@@ -117,7 +117,12 @@ class MainActivity : ComponentActivity() {
                     // 5. Home Route
                     composable(Screen.Home.route) {
                         HomeScreen(
-                            onTabSelected = onTabSelected
+                            onTabSelected = onTabSelected,
+                            onManageInventoryClick = {
+                                navController.navigate(Screen.Inventory.route) {
+                                    launchSingleTop = true
+                                }
+                            }
                         )
                     }
 

@@ -2,6 +2,7 @@ package com.example.moveon.data.remote
 
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.moveon.app.data.remote.dto.BookingDto
 import com.moveon.app.data.remote.dto.ProviderDto
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -30,5 +31,13 @@ class FirebaseService @Inject constructor(
         firestore.collection("bookings").document(bookingId)
             .update("status", status)
             .await()
+    }
+
+    suspend fun getBookingsForUser(userId: String): List<BookingDto> {
+        return firestore.collection("bookings")
+            .whereEqualTo("user_id", userId)
+            .get()
+            .await()
+            .toObjects(BookingDto::class.java)
     }
 }
