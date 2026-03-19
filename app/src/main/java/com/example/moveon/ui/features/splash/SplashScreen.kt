@@ -35,10 +35,10 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(onNavigateToOnboarding: () -> Unit) {
+fun SplashScreen(onResolveSession: () -> Unit) {
     LaunchedEffect(Unit) {
         delay(2000L)
-        onNavigateToOnboarding()
+        onResolveSession()
     }
 
     val dotTransition = rememberInfiniteTransition(label = "SplashDotTransition")

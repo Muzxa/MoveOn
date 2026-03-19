@@ -46,6 +46,8 @@ fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val authState by viewModel.authState
+    val rememberedEmail by viewModel.rememberedEmail
+    val rememberMeEnabled by viewModel.rememberMeEnabled
     val isLoading = authState is AuthViewModel.AuthState.Loading
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -66,6 +68,16 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
+
+    LaunchedEffect(rememberedEmail) {
+        if (email.isBlank()) {
+            email = rememberedEmail
+        }
+    }
+
+    LaunchedEffect(rememberMeEnabled) {
+        rememberMe = rememberMeEnabled
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -246,7 +258,7 @@ fun LoginScreen(
 
             // Sign In Button
             Button(
-                onClick = { viewModel.onEvent(AuthEvent.Login(email, password)) },
+                onClick = { viewModel.onEvent(AuthEvent.Login(email, password, rememberMe)) },
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()

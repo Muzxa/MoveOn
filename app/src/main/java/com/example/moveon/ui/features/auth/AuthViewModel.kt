@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moveon.data.local.dao.UserPreferences
 import com.example.moveon.domain.model.User
 import com.example.moveon.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,8 +19,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userPreferences: UserPreferences
 ) : ViewModel() {
+
+    fun isUserLoggedIn(): Boolean = authRepository.isUserLoggedIn()
 
     val currentUser: StateFlow<User?> = authRepository.currentUser
         .stateIn(
@@ -31,12 +35,30 @@ class AuthViewModel @Inject constructor(
     private val _authState = mutableStateOf<AuthState>(AuthState.Idle)
     val authState: State<AuthState> = _authState
 
+    private val _rememberedEmail = mutableStateOf("")
+    val rememberedEmail: State<String> = _rememberedEmail
+
+    private val _rememberMeEnabled = mutableStateOf(false)
+    val rememberMeEnabled: State<Boolean> = _rememberMeEnabled
+
     private val _eventFlow = MutableSharedFlow<UiEvent>()
     val eventFlow: SharedFlow<UiEvent> = _eventFlow.asSharedFlow()
 
+    init {
+        viewModelScope.launch {
+            val enabled = userPreferences.isRememberMeEnabled()
+            _rememberMeEnabled.value = enabled
+            _rememberedEmail.value = if (enabled) {
+                userPreferences.getRememberedEmail().orEmpty()
+            } else {
+                ""
+            }
+        }
+    }
+
     fun onEvent(event: AuthEvent) {
         when (event) {
-            is AuthEvent.Login -> login(event.email, event.password)
+            is AuthEvent.Login -> login(event.email, event.password, event.rememberMe)
             is AuthEvent.GoogleSignIn -> signInWithGoogle(event.idToken)
             is AuthEvent.RegisterUser -> registerUser(event.email, event.password, event.fName, event.lName, event.pNumber)
             is AuthEvent.RegisterProvider -> registerProvider(
@@ -51,11 +73,20 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    private fun login(email: String, pass: String) {
+    private fun login(email: String, pass: String, rememberMe: Boolean) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             authRepository.login(email, pass)
                 .onSuccess {
+                    if (rememberMe) {
+                        userPreferences.setRememberMeEnabled(true)
+                        userPreferences.setRememberedEmail(email)
+                    } else {
+                        userPreferences.clearRememberMeData()
+                    }
+
+                    _rememberMeEnabled.value = rememberMe
+                    _rememberedEmail.value = if (rememberMe) email else ""
                     _authState.value = AuthState.Success
                     _eventFlow.emit(UiEvent.NavigateToHome)
                 }
@@ -149,7 +180,7 @@ class AuthViewModel @Inject constructor(
 }
 
 sealed class AuthEvent {
-    data class Login(val email: String, val password: String) : AuthEvent()
+    data class Login(val email: String, val password: String, val rememberMe: Boolean) : AuthEvent()
     data class GoogleSignIn(val idToken: String) : AuthEvent()
     data class RegisterUser(
         val email: String,
