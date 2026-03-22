@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -47,6 +48,19 @@ class InventoryViewModel @Inject constructor(
             is InventoryEvent.RoomNameChanged -> {
                 _uiState.value = _uiState.value.copy(
                     roomName = event.value,
+                    selectedRoomSuggestion = if (event.value == _uiState.value.selectedRoomSuggestion) {
+                        _uiState.value.selectedRoomSuggestion
+                    } else {
+                        null
+                    },
+                    errorMessage = null
+                )
+            }
+
+            is InventoryEvent.RoomSuggestionSelected -> {
+                _uiState.value = _uiState.value.copy(
+                    roomName = event.value,
+                    selectedRoomSuggestion = event.value,
                     errorMessage = null
                 )
             }
@@ -105,13 +119,15 @@ class InventoryViewModel @Inject constructor(
             val boxId = current.customId
                 .trim()
                 .uppercase()
-                .ifBlank { generateBoxId(current.selectedCategory) }
+                .ifBlank { generateBoxId(room) }
+
+            val inferredCategory = roomNameToCategory(room)
 
             val box = Box(
                 id = boxId,
                 bookingId = "0",
                 vehicleId = null,
-                category = current.selectedCategory.name,
+                category = inferredCategory.name,
                 label = room,
                 volume = 15.0,
                 qrImagePath = ""
@@ -152,6 +168,7 @@ class InventoryViewModel @Inject constructor(
                 isAddBoxDialogVisible = false,
                 roomName = "",
                 customId = "",
+                selectedRoomSuggestion = null,
                 selectedCategory = MoveOnCategory.LivingRoom,
                 selectedColorHex = DEFAULT_COLOR_HEX,
                 isSaving = false,
@@ -159,7 +176,7 @@ class InventoryViewModel @Inject constructor(
                 createdBoxes = listOf(
                     CreatedInventoryBox(
                         id = boxId,
-                        category = current.selectedCategory
+                        category = inferredCategory
                     )
                 ) + _uiState.value.createdBoxes
             )
@@ -168,18 +185,38 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    private fun generateBoxId(category: MoveOnCategory): String {
-        val prefix = when (category) {
-            MoveOnCategory.LivingRoom -> "LR"
-            MoveOnCategory.Bedroom -> "BR"
-            MoveOnCategory.Kitchen -> "KT"
-            MoveOnCategory.Bathroom -> "BT"
-            MoveOnCategory.Storage -> "ST"
-            MoveOnCategory.Office -> "OF"
-        }
+    private fun generateBoxId(roomName: String): String {
+        val words = roomName
+            .trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
 
-        val suffix = (System.currentTimeMillis() % 1000).toString().padStart(3, '0')
-        return "$prefix-$suffix"
+        val initials = when {
+            words.size >= 2 -> ("${words[0].first()}${words[1].first()}")
+            words.size == 1 -> words[0].take(2).padEnd(2, 'X')
+            else -> "BX"
+        }.uppercase()
+
+        val uniqueId = UUID.randomUUID()
+            .toString()
+            .replace("-", "")
+            .take(6)
+            .uppercase()
+
+        return "$initials-$uniqueId"
+    }
+
+    private fun roomNameToCategory(roomName: String): MoveOnCategory {
+        val normalized = roomName.trim().lowercase()
+        return when {
+            normalized.contains("living") -> MoveOnCategory.LivingRoom
+            normalized.contains("bed") -> MoveOnCategory.Bedroom
+            normalized.contains("kitchen") -> MoveOnCategory.Kitchen
+            normalized.contains("bath") -> MoveOnCategory.Bathroom
+            normalized.contains("storage") -> MoveOnCategory.Storage
+            normalized.contains("office") -> MoveOnCategory.Office
+            else -> MoveOnCategory.Storage
+        }
     }
 
     companion object {
@@ -190,6 +227,7 @@ class InventoryViewModel @Inject constructor(
 data class InventoryUiState(
     val isAddBoxDialogVisible: Boolean = false,
     val roomName: String = "",
+    val selectedRoomSuggestion: String? = null,
     val customId: String = "",
     val selectedCategory: MoveOnCategory = MoveOnCategory.LivingRoom,
     val selectedColorHex: String = InventoryViewModel.DEFAULT_COLOR_HEX,
@@ -207,6 +245,7 @@ sealed class InventoryEvent {
     object OpenAddBoxDialog : InventoryEvent()
     object CloseAddBoxDialog : InventoryEvent()
     data class RoomNameChanged(val value: String) : InventoryEvent()
+    data class RoomSuggestionSelected(val value: String) : InventoryEvent()
     data class CustomIdChanged(val value: String) : InventoryEvent()
     data class CategorySelected(val category: MoveOnCategory) : InventoryEvent()
     data class ColorSelected(val hex: String) : InventoryEvent()
