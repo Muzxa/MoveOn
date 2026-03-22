@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.moveon.domain.model.UserRole
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
+import com.example.moveon.ui.components.ProviderDashboardTab
 import com.example.moveon.ui.components.PlaceholderFutureScreen
 import com.example.moveon.ui.Screen
 import com.example.moveon.ui.features.auth.AuthEvent
@@ -49,6 +50,9 @@ import com.example.moveon.ui.features.profile.ProfileScreen
 import com.example.moveon.ui.features.splash.SplashScreen
 import com.example.moveon.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -85,7 +89,13 @@ class MainActivity : ComponentActivity() {
 
                         SplashScreen(
                             onResolveSession = {
-                                val role = authViewModel.currentUser.value?.role
+                                val role = withTimeoutOrNull(4000L) {
+                                    authViewModel.currentUser
+                                        .filterNotNull()
+                                        .first()
+                                        .role
+                                }
+
                                 val targetRoute = when {
                                     role == UserRole.PROVIDER -> Screen.ProviderDashboard.route
                                     authViewModel.isUserLoggedIn() -> Screen.Home.route
@@ -295,11 +305,9 @@ class MainActivity : ComponentActivity() {
 
                     composable(Screen.ProviderDashboard.route) {
                         ProviderDashboardScreen(
-                            onGoHome = {
-                                navController.navigate(Screen.SignUp.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        inclusive = true
-                                    }
+                            onOpenProfile = {
+                                navController.navigate(Screen.ProviderProfile.route) {
+                                    launchSingleTop = true
                                 }
                             }
                         )
@@ -337,9 +345,46 @@ class MainActivity : ComponentActivity() {
                             onTabSelected = onTabSelected,
                             onNavigateToLogin = {
                                 navController.navigate(Screen.Login.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
+                                    popUpTo(navController.graph.id) {
                                         inclusive = true
+                                        saveState = false
                                     }
+                                    launchSingleTop = true
+                                    restoreState = false
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.ProviderProfile.route) {
+                        ProfileScreen(
+                            onTabSelected = onTabSelected,
+                            isProviderMode = true,
+                            onProviderTabSelected = { tab ->
+                                when (tab) {
+                                    ProviderDashboardTab.Dashboard -> {
+                                        navController.navigate(Screen.ProviderDashboard.route) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+
+                                    ProviderDashboardTab.Profile -> Unit
+                                    ProviderDashboardTab.Vehicles,
+                                    ProviderDashboardTab.Jobs -> {
+                                        navController.navigate(Screen.ProviderDashboard.route) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                            },
+                            onNavigateToLogin = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(navController.graph.id) {
+                                        inclusive = true
+                                        saveState = false
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = false
                                 }
                             }
                         )

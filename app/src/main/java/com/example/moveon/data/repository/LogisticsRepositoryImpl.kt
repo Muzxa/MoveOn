@@ -5,7 +5,9 @@ import com.example.moveon.data.mapper.toDto
 import com.example.moveon.domain.model.BookingStatus
 import com.example.moveon.data.remote.FirebaseService
 import com.example.moveon.domain.model.Booking
+import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
+import com.example.moveon.domain.model.Vehicle
 import com.example.moveon.domain.repository.LogisticsRepository
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.util.LogicUtils
@@ -18,6 +20,33 @@ class LogisticsRepositoryImpl @Inject constructor(
     override suspend fun getMarketplaceProviders(): List<Provider> {
         return firebaseService.getAvailableProviders()
             .map { it.toDomainModel() }
+    }
+
+    override suspend fun getProviderById(providerId: String): Result<Provider?> {
+        return runCatching {
+            firebaseService.getProviderById(providerId)?.toDomainModel()
+        }
+    }
+
+    override suspend fun getVehiclesForProvider(providerId: String): Result<List<Vehicle>> {
+        return runCatching {
+            firebaseService.getVehiclesForProvider(providerId)
+                .map { it.toDomainModel() }
+        }
+    }
+
+    override suspend fun getDriversForProvider(providerId: String): Result<List<Driver>> {
+        return runCatching {
+            firebaseService.getDriversForProvider(providerId)
+                .map { it.toDomainModel() }
+        }
+    }
+
+    override suspend fun getBookingsForProvider(providerId: String): Result<List<Booking>> {
+        return runCatching {
+            firebaseService.getBookingsForProvider(providerId)
+                .map { it.toDomainModel() }
+        }
     }
 
     override suspend fun confirmBooking(booking: Booking) {
