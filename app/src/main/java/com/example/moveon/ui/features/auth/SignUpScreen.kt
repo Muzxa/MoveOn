@@ -2,6 +2,7 @@ package com.example.moveon.ui.features.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
@@ -34,6 +35,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,13 +45,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.moveon.domain.model.UserRole
 import com.example.moveon.ui.theme.LightBackground
 import com.example.moveon.ui.theme.LightBorder
 import com.example.moveon.ui.theme.LightBorderLight
@@ -57,18 +66,37 @@ import com.example.moveon.ui.theme.LightSurface
 import com.example.moveon.ui.theme.LightSurfaceVariant
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
+import com.example.moveon.util.Constants
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
 @Composable
 fun SignUpScreen(
     flowViewModel: AuthFlowViewModel,
     onNavigateToLogin: () -> Unit,
-    onNavigateToRoleChoose: () -> Unit
+    onNavigateToRoleChoose: () -> Unit,
+    onNavigateToHome: (UserRole) -> Unit = {},
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
+    val authState by viewModel.authState
+    val isLoading = authState is AuthViewModel.AuthState.Loading
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var isCheckingEmail by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is AuthViewModel.UiEvent.NavigateToHome -> onNavigateToHome(event.role)
+                is AuthViewModel.UiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                else -> Unit
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -83,8 +111,8 @@ fun SignUpScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(start = 24.dp, top = 28.dp, end = 24.dp, bottom = 30.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
                     text = "MoveOn",
@@ -95,28 +123,29 @@ fun SignUpScreen(
                 Text(
                     text = "Get Started",
                     color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = 34.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "Create your account to start moving",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.78f),
+                    fontSize = 16.sp
                 )
             }
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                    .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
                     .background(LightBackground)
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height(46.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(LightBorderLight)
                         .padding(3.dp)
@@ -216,16 +245,39 @@ fun SignUpScreen(
                             flowViewModel.password.length < 6 -> {
                                 scope.launch { snackbarHostState.showSnackbar("Password must be at least 6 characters") }
                             }
-                            else -> onNavigateToRoleChoose()
+                            else -> {
+                                scope.launch {
+                                    isCheckingEmail = true
+                                    val reservation = viewModel.reserveAccount(
+                                        email = flowViewModel.email.trim(),
+                                        pass = flowViewModel.password
+                                    )
+                                    isCheckingEmail = false
+
+                                    reservation
+                                        .onSuccess {
+                                            onNavigateToRoleChoose()
+                                        }
+                                        .onFailure { error ->
+                                            snackbarHostState.showSnackbar(
+                                                error.message ?: "Could not create account right now. Please try again."
+                                            )
+                                        }
+                                }
+                            }
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
+                    enabled = !isLoading && !isCheckingEmail,
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Text("Create Account", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = if (isCheckingEmail) "Checking..." else "Create Account",
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
 
                 Row(
@@ -241,21 +293,46 @@ fun SignUpScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(LightSurfaceVariant),
+                        .height(36.dp)
+                        .border(width = 1.dp, color = LightBorder, shape = RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White)
+                        .clickable(enabled = !isLoading) {
+                            scope.launch {
+                                try {
+                                    val credentialManager = CredentialManager.create(context)
+                                    val googleIdOption = GetGoogleIdOption.Builder()
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .setServerClientId(Constants.GOOGLE_WEB_CLIENT_ID)
+                                        .build()
+                                    val request = GetCredentialRequest.Builder()
+                                        .addCredentialOption(googleIdOption)
+                                        .build()
+                                    val result = credentialManager.getCredential(context, request)
+                                    val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+                                    viewModel.onEvent(AuthEvent.GoogleSignIn(googleCredential.idToken))
+                                } catch (_: GetCredentialCancellationException) {
+                                    // User closed the Google credential sheet.
+                                } catch (e: GetCredentialException) {
+                                    snackbarHostState.showSnackbar("Google sign-in failed: ${e.message}")
+                                }
+                            }
+                        }
+                        .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("G", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(text = "G", fontWeight = FontWeight.SemiBold, color = Color(0xFF202124))
                 }
 
                 Text(
                     text = "By creating an account, you agree to our Terms of Service and Privacy Policy",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = LightTextSecondary,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    lineHeight = 14.sp,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
 
@@ -267,6 +344,7 @@ fun SignUpScreen(
         )
     }
 }
+
 
 @Composable
 private fun SignUpField(
@@ -306,4 +384,3 @@ private fun SignUpField(
         )
     }
 }
-
