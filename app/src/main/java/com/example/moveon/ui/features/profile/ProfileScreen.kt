@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
+import com.example.moveon.ui.components.ProviderBottomBar
+import com.example.moveon.ui.components.ProviderDashboardTab
 import com.example.moveon.ui.components.MoveOnProfileActionRowItem
 import com.example.moveon.ui.components.MoveOnProfileHeaderCard
 import com.example.moveon.ui.components.MoveOnStatCard
@@ -54,6 +56,8 @@ import com.example.moveon.ui.theme.Success
 fun ProfileScreen(
     onTabSelected: (DashboardTab) -> Unit,
     onNavigateToLogin: () -> Unit,
+    isProviderMode: Boolean = false,
+    onProviderTabSelected: (ProviderDashboardTab) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state = viewModel.profileState.value
@@ -69,10 +73,17 @@ fun ProfileScreen(
     Scaffold(
         containerColor = LightBackground,
         bottomBar = {
-            MoveOnBottomBar(
-                selectedTab = DashboardTab.Profile,
-                onTabSelected = onTabSelected
-            )
+            if (isProviderMode) {
+                ProviderBottomBar(
+                    selectedTab = ProviderDashboardTab.Profile,
+                    onTabSelected = onProviderTabSelected
+                )
+            } else {
+                MoveOnBottomBar(
+                    selectedTab = DashboardTab.Profile,
+                    onTabSelected = onTabSelected
+                )
+            }
         }
     ) { innerPadding ->
         Column(

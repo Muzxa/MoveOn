@@ -42,11 +42,11 @@ import com.example.moveon.ui.theme.LightTextPrimary
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
 
-internal enum class ProviderDashboardTab(
+enum class ProviderDashboardTab(
     val label: String,
     val icon: ImageVector
 ) {
-    Dashboard("Dashboard", Icons.Outlined.Home),
+    Dashboard("Home", Icons.Outlined.Home),
     Vehicles("Vehicles", Icons.Outlined.LocalShipping),
     Jobs("Jobs", Icons.Outlined.Inventory2),
     Profile("Profile", Icons.Outlined.PersonOutline)

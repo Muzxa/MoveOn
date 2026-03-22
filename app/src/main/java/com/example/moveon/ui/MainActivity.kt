@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.moveon.domain.model.UserRole
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
+import com.example.moveon.ui.components.ProviderDashboardTab
 import com.example.moveon.ui.components.PlaceholderFutureScreen
 import com.example.moveon.ui.Screen
 import com.example.moveon.ui.features.auth.AuthEvent
@@ -305,7 +306,7 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.ProviderDashboard.route) {
                         ProviderDashboardScreen(
                             onOpenProfile = {
-                                navController.navigate(Screen.Profile.route) {
+                                navController.navigate(Screen.ProviderProfile.route) {
                                     launchSingleTop = true
                                 }
                             }
@@ -342,6 +343,40 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.Profile.route) {
                         ProfileScreen(
                             onTabSelected = onTabSelected,
+                            onNavigateToLogin = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(navController.graph.id) {
+                                        inclusive = true
+                                        saveState = false
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = false
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.ProviderProfile.route) {
+                        ProfileScreen(
+                            onTabSelected = onTabSelected,
+                            isProviderMode = true,
+                            onProviderTabSelected = { tab ->
+                                when (tab) {
+                                    ProviderDashboardTab.Dashboard -> {
+                                        navController.navigate(Screen.ProviderDashboard.route) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+
+                                    ProviderDashboardTab.Profile -> Unit
+                                    ProviderDashboardTab.Vehicles,
+                                    ProviderDashboardTab.Jobs -> {
+                                        navController.navigate(Screen.ProviderDashboard.route) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                            },
                             onNavigateToLogin = {
                                 navController.navigate(Screen.Login.route) {
                                     popUpTo(navController.graph.id) {
