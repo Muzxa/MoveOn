@@ -1,10 +1,18 @@
 
 package com.example.moveon.ui.features.auth
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,13 +22,30 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,9 +59,12 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.moveon.domain.model.UserRole
 import com.example.moveon.ui.theme.LightBackground
+import com.example.moveon.ui.theme.LightBorder
 import com.example.moveon.ui.theme.LightBorderLight
 import com.example.moveon.ui.theme.LightSurface
+import com.example.moveon.ui.theme.LightSurfaceVariant
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
 import com.example.moveon.util.Constants
@@ -47,7 +75,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit = {},
-    onNavigateToHome: () -> Unit = {},
+    onNavigateToHome: (UserRole) -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val authState by viewModel.authState
@@ -62,7 +90,7 @@ fun LoginScreen(
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                is AuthViewModel.UiEvent.NavigateToHome -> onNavigateToHome()
+                is AuthViewModel.UiEvent.NavigateToHome -> onNavigateToHome(event.role)
                 is AuthViewModel.UiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
                 else -> Unit
             }
@@ -85,272 +113,202 @@ fun LoginScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Primary,
-                        Primary.copy(alpha = 0.8f)
-                    )
-                )
-            )
-    ) {
-
-        // Header
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp, top = 60.dp, bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .background(Brush.verticalGradient(listOf(Primary, Primary.copy(alpha = 0.85f))))
         ) {
-
-            Text(
-                text = "MoveOn",
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-
-            Text(
-                text = "Welcome Back!",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-
-            Text(
-                text = "Sign in to continue your journey",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-            )
-        }
-
-        // Form Container
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(LightBackground)
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-
-            // Sign In / Sign Up toggle
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(LightBorderLight)
-                    .padding(4.dp)
+                    .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(LightSurface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Sign In", fontWeight = FontWeight.SemiBold, color = LightTextSecondary)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable { onNavigateToRegister() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Sign Up", color = LightTextSecondary)
-                }
+                Text("MoveOn", color = MaterialTheme.colorScheme.onPrimary, fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                Text("Welcome Back!", color = MaterialTheme.colorScheme.onPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                Text("Sign in to continue your journey", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f))
             }
 
-            // Email Field
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                    .background(LightBackground)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LightBorderLight)
+                        .padding(3.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(LightSurface),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Sign In", fontWeight = FontWeight.SemiBold)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize()
+                            .clickable(onClick = onNavigateToRegister),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Sign Up", color = LightTextSecondary)
+                    }
+                }
 
-                Text(
-                    "Email Address",
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                OutlinedTextField(
+                AuthField(
+                    label = "Email Address",
                     value = email,
                     onValueChange = { email = it },
-                    placeholder = { Text("you@example.com") },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Email, contentDescription = null)
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-            }
-
-            // Password Field
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-
-                Text(
-                    "Password",
-                    fontWeight = FontWeight.SemiBold
+                    placeholder = "you@example.com",
+                    keyboardType = KeyboardType.Email,
+                    leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) }
                 )
 
-                OutlinedTextField(
+                AuthField(
+                    label = "Password",
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = { Text("Enter your password") },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Lock, contentDescription = null)
-                    },
+                    placeholder = "Enter your password",
+                    keyboardType = KeyboardType.Password,
+                    leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
                     trailingIcon = {
-                        IconButton(
-                            onClick = { passwordVisible = !passwordVisible }
-                        ) {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
-                                if (passwordVisible)
-                                    Icons.Outlined.Visibility
-                                else
-                                    Icons.Outlined.VisibilityOff,
+                                imageVector = if (passwordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                                 contentDescription = null
                             )
                         }
                     },
-                    visualTransformation =
-                        if (passwordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation()
                 )
-            }
-
-            // Remember + Forgot
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
 
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
-                    Checkbox(
-                        checked = rememberMe,
-                        onCheckedChange = { rememberMe = it }
-                    )
-
-                    Text("Remember me", color = LightTextSecondary)
-                }
-
-                TextButton(onClick = { }) {
-                    Text("Forgot Password?", color = LightTextSecondary)
-                }
-            }
-
-            // Sign In Button
-            Button(
-                onClick = { viewModel.onEvent(AuthEvent.Login(email, password, rememberMe)) },
-                enabled = !isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(26.dp)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
-
-            // Inline error message
-            if (authState is AuthViewModel.AuthState.Error) {
-                Text(
-                    text = (authState as AuthViewModel.AuthState.Error).message,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 14.sp
-                )
-            }
-
-            // Divider
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-
-                HorizontalDivider(
-                    modifier = Modifier.weight(1f)
-                )
-
-                Text(
-                    "Or continue with",
-                    color = LightTextSecondary
-                )
-
-                HorizontalDivider(
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Google Sign-In button
-            OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        try {
-                            val credentialManager = CredentialManager.create(context)
-                            val googleIdOption = GetGoogleIdOption.Builder()
-                                .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId(Constants.GOOGLE_WEB_CLIENT_ID)
-                                .build()
-                            val request = GetCredentialRequest.Builder()
-                                .addCredentialOption(googleIdOption)
-                                .build()
-                            val result = credentialManager.getCredential(context, request)
-                            val googleCredential =
-                                GoogleIdTokenCredential.createFrom(result.credential.data)
-                            viewModel.onEvent(AuthEvent.GoogleSignIn(googleCredential.idToken))
-                        } catch (e: GetCredentialCancellationException) {
-                            // User cancelled — no-op
-                        } catch (e: GetCredentialException) {
-                            snackbarHostState.showSnackbar("Google sign-in failed: ${e.message}")
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = rememberMe, onCheckedChange = { rememberMe = it })
+                        Text("Remember me", color = LightTextSecondary)
                     }
-                },
-                enabled = !isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                border = BorderStroke(1.dp, Color.LightGray),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("G", fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { }) {
+                        Text("Forgot Password?", color = Primary)
+                    }
+                }
+
+                Button(
+                    onClick = { viewModel.onEvent(AuthEvent.Login(email, password, rememberMe)) },
+                    enabled = !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Sign In", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                if (authState is AuthViewModel.AuthState.Error) {
+                    Text((authState as AuthViewModel.AuthState.Error).message, color = MaterialTheme.colorScheme.error)
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = LightBorder)
+                    Text("Or continue with", color = LightTextSecondary)
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = LightBorder)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LightSurfaceVariant)
+                        .clickable(enabled = !isLoading) {
+                            scope.launch {
+                                try {
+                                    val credentialManager = CredentialManager.create(context)
+                                    val googleIdOption = GetGoogleIdOption.Builder()
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .setServerClientId(Constants.GOOGLE_WEB_CLIENT_ID)
+                                        .build()
+                                    val request = GetCredentialRequest.Builder()
+                                        .addCredentialOption(googleIdOption)
+                                        .build()
+                                    val result = credentialManager.getCredential(context, request)
+                                    val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+                                    viewModel.onEvent(AuthEvent.GoogleSignIn(googleCredential.idToken))
+                                } catch (e: GetCredentialCancellationException) {
+                                    // User cancelled Google flow.
+                                } catch (e: GetCredentialException) {
+                                    snackbarHostState.showSnackbar("Google sign-in failed: ${e.message}")
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("G", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
-    }
 
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.align(Alignment.BottomCenter)
-    )
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+@Composable
+private fun AuthField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(placeholder) },
+            leadingIcon = leadingIcon,
+            trailingIcon = trailingIcon,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            visualTransformation = visualTransformation,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = LightSurfaceVariant,
+                unfocusedContainerColor = LightSurfaceVariant,
+                disabledContainerColor = LightSurfaceVariant,
+                focusedIndicatorColor = LightBorder,
+                unfocusedIndicatorColor = LightBorder
+            )
+        )
     }
 }
 

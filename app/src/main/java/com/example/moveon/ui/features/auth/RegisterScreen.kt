@@ -22,7 +22,7 @@ import com.example.moveon.domain.model.UserRole
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onNavigateToHome: () -> Unit,
+    onNavigateToHome: (UserRole) -> Unit,
     onNavigateToLogin: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -50,7 +50,7 @@ fun RegisterScreen(
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                is AuthViewModel.UiEvent.NavigateToHome -> onNavigateToHome()
+                is AuthViewModel.UiEvent.NavigateToHome -> onNavigateToHome(event.role)
                 is AuthViewModel.UiEvent.NavigateToLogin -> onNavigateToLogin()
                 else -> {}
             }
