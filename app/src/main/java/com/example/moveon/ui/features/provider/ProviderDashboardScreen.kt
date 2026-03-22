@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -24,7 +25,6 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.moveon.ui.components.ProviderBottomBar
 import com.example.moveon.ui.components.ProviderDashboardTab
 import com.example.moveon.ui.components.ProviderGlassStatCard
@@ -65,35 +66,14 @@ import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
 import com.example.moveon.ui.theme.Secondary
 import com.example.moveon.ui.theme.Success
-
-private data class NewRequestUi(
-    val service: String,
-    val serviceBackground: Color,
-    val serviceColor: Color,
-    val age: String,
-    val pickup: String,
-    val destination: String
-)
-
-private data class ActiveJobUi(
-    val service: String,
-    val serviceBackground: Color,
-    val serviceColor: Color,
-    val state: String,
-    val stateBackground: Color,
-    val stateColor: Color,
-    val code: String,
-    val pickup: String,
-    val destination: String,
-    val driver: String,
-    val eta: String,
-    val vehicle: String
-)
+import java.text.DecimalFormat
 
 @Composable
 fun ProviderDashboardScreen(
-    onOpenProfile: () -> Unit
+    onOpenProfile: () -> Unit,
+    viewModel: ProviderDashboardViewModel = hiltViewModel()
 ) {
+    val state = viewModel.state.value
     var selectedTab by remember { mutableStateOf(ProviderDashboardTab.Dashboard) }
 
     LaunchedEffect(selectedTab) {
@@ -128,7 +108,7 @@ fun ProviderDashboardScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                ProviderDashboardHeader()
+                ProviderDashboardHeader(state = state)
             }
 
             item {
@@ -138,11 +118,23 @@ fun ProviderDashboardScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    if (state.isLoading) {
+                        Text(
+                            text = "Loading dashboard...",
+                            color = LightTextSecondary
+                        )
+                    }
                     QuickActionsSection()
-                    EarningsSection()
-                    KpiSection()
-                    NewRequestsSection()
-                    ActiveJobsSection()
+                    EarningsSection(state = state)
+                    KpiSection(state = state)
+                    NewRequestsSection(state = state)
+                    ActiveJobsSection(state = state)
+                    if (state.errorMessage != null) {
+                        Text(
+                            text = state.errorMessage,
+                            color = Accent
+                        )
+                    }
                 }
             }
 
@@ -154,7 +146,7 @@ fun ProviderDashboardScreen(
 }
 
 @Composable
-private fun ProviderDashboardHeader() {
+private fun ProviderDashboardHeader(state: ProviderDashboardUiState) {
     ProviderHeaderGradient(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,7 +169,7 @@ private fun ProviderDashboardHeader() {
                         color = Color.White.copy(alpha = 0.75f)
                     )
                     Text(
-                        text = "Ahmed Transport",
+                        text = state.providerDisplayName,
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -202,19 +194,19 @@ private fun ProviderDashboardHeader() {
             ) {
                 ProviderGlassStatCard(
                     icon = Icons.Outlined.Person,
-                    value = "5",
+                    value = state.vehiclesCount.toString(),
                     label = "Vehicles",
                     modifier = Modifier.weight(1f)
                 )
                 ProviderGlassStatCard(
                     icon = Icons.Outlined.Groups,
-                    value = "4",
+                    value = state.driversCount.toString(),
                     label = "Drivers",
                     modifier = Modifier.weight(1f)
                 )
                 ProviderGlassStatCard(
                     icon = Icons.Outlined.Inventory2,
-                    value = "2",
+                    value = state.activeJobsCount.toString(),
                     label = "Active Jobs",
                     modifier = Modifier.weight(1f)
                 )
@@ -246,7 +238,7 @@ private fun QuickActionsSection() {
 }
 
 @Composable
-private fun EarningsSection() {
+private fun EarningsSection(state: ProviderDashboardUiState) {
     ProviderSectionHeader(
         title = "Earnings",
         trailingText = "View Details"
@@ -258,19 +250,19 @@ private fun EarningsSection() {
     ) {
         ProviderMetricCard(
             icon = Icons.Outlined.AttachMoney,
-            amount = "Rs18,450",
+            amount = formatRs(state.earningsToday),
             label = "Today",
             modifier = Modifier.weight(1f)
         )
         ProviderMetricCard(
-            icon = Icons.Outlined.TrendingUp,
-            amount = "Rs95,200",
+            icon = Icons.AutoMirrored.Outlined.TrendingUp,
+            amount = formatRs(state.earningsThisWeek),
             label = "This Week",
             modifier = Modifier.weight(1f)
         )
         ProviderMetricCard(
             icon = Icons.Outlined.CalendarMonth,
-            amount = "Rs383K",
+            amount = formatRs(state.earningsThisMonth),
             label = "This Month",
             modifier = Modifier.weight(1f)
         )
@@ -278,24 +270,24 @@ private fun EarningsSection() {
 }
 
 @Composable
-private fun KpiSection() {
+private fun KpiSection(state: ProviderDashboardUiState) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         ProviderKpiCard(
-            value = "4.8",
+            value = DecimalFormat("0.0").format(state.rating),
             label = "Rating",
             leadingIcon = Icons.Outlined.Star,
             modifier = Modifier.weight(1f)
         )
         ProviderKpiCard(
-            value = "547",
+            value = state.trips.toString(),
             label = "Trips",
             modifier = Modifier.weight(1f)
         )
         ProviderKpiCard(
-            value = "97%",
+            value = "${state.onTimePercent}%",
             label = "On-Time",
             valueColor = Success,
             modifier = Modifier.weight(1f)
@@ -304,34 +296,32 @@ private fun KpiSection() {
 }
 
 @Composable
-private fun NewRequestsSection() {
-    val requests = listOf(
-        NewRequestUi(
-            service = "MoveMax",
-            serviceBackground = Secondary.copy(alpha = 0.14f),
-            serviceColor = Success,
-            age = "3 mins ago",
-            pickup = "Gulberg III, Lahore",
-            destination = "Model Town, Lahore"
-        ),
-        NewRequestUi(
-            service = "MoveBig",
-            serviceBackground = Accent.copy(alpha = 0.14f),
-            serviceColor = Accent,
-            age = "7 mins ago",
-            pickup = "Saddar, Rawalpindi",
-            destination = "Bahria Town, Islamabad"
-        )
-    )
+private fun NewRequestsSection(state: ProviderDashboardUiState) {
 
     ProviderSectionHeader(title = "New Requests")
-    requests.forEach { request ->
+    state.newRequests.forEach { request ->
         NewRequestCard(request)
+    }
+
+    if (state.newRequests.isEmpty()) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = LightSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, LightBorder)
+        ) {
+            Text(
+                text = "No new requests right now",
+                color = LightTextSecondary,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun NewRequestCard(request: NewRequestUi) {
+private fun NewRequestCard(request: ProviderNewRequestUi) {
+    val (serviceBackground, serviceColor) = requestServiceColors(request.service)
+
     Card(
         colors = CardDefaults.cardColors(containerColor = LightSurface),
         shape = RoundedCornerShape(16.dp),
@@ -354,11 +344,11 @@ private fun NewRequestCard(request: NewRequestUi) {
                 ) {
                     ProviderTag(
                         text = request.service,
-                        backgroundColor = request.serviceBackground,
-                        textColor = request.serviceColor
+                        backgroundColor = serviceBackground,
+                        textColor = serviceColor
                     )
                     Text(
-                        text = request.age,
+                        text = request.ageLabel,
                         color = LightTextSecondary
                     )
                 }
@@ -390,46 +380,33 @@ private fun NewRequestCard(request: NewRequestUi) {
 }
 
 @Composable
-private fun ActiveJobsSection() {
-    val jobs = listOf(
-        ActiveJobUi(
-            service = "MoveBig",
-            serviceBackground = Accent.copy(alpha = 0.14f),
-            serviceColor = Accent,
-            state = "In Transit",
-            stateBackground = Primary.copy(alpha = 0.12f),
-            stateColor = Primary,
-            code = "#0312",
-            pickup = "Blue Area, Islamabad",
-            destination = "DHA Phase 5, Lahore",
-            driver = "Usman Ali",
-            eta = "2h 15m",
-            vehicle = "Hino Dutro - LHR-4521"
-        ),
-        ActiveJobUi(
-            service = "MoveLite",
-            serviceBackground = Primary.copy(alpha = 0.12f),
-            serviceColor = Primary,
-            state = "Loading",
-            stateBackground = Accent.copy(alpha = 0.14f),
-            stateColor = Accent,
-            code = "#0314",
-            pickup = "F-10 Markaz, Islamabad",
-            destination = "G-11/4, Islamabad",
-            driver = "Faisal Mehmood",
-            eta = "30m",
-            vehicle = "Suzuki Bolan - ISB-7823"
-        )
-    )
+private fun ActiveJobsSection(state: ProviderDashboardUiState) {
 
     ProviderSectionHeader(title = "Active Jobs", trailingText = "Track All")
-    jobs.forEach { job ->
+    state.activeJobs.forEach { job ->
         ActiveJobCard(job)
+    }
+
+    if (state.activeJobs.isEmpty()) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = LightSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, LightBorder)
+        ) {
+            Text(
+                text = "No active jobs",
+                color = LightTextSecondary,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun ActiveJobCard(job: ActiveJobUi) {
+private fun ActiveJobCard(job: ProviderActiveJobUi) {
+    val (serviceBackground, serviceColor) = requestServiceColors(job.service)
+    val (stateBackground, stateColor) = statusColors(job.status)
+
     Card(
         colors = CardDefaults.cardColors(containerColor = LightSurface),
         shape = RoundedCornerShape(16.dp),
@@ -452,13 +429,13 @@ private fun ActiveJobCard(job: ActiveJobUi) {
                 ) {
                     ProviderTag(
                         text = job.service,
-                        backgroundColor = job.serviceBackground,
-                        textColor = job.serviceColor
+                        backgroundColor = serviceBackground,
+                        textColor = serviceColor
                     )
                     ProviderTag(
-                        text = job.state,
-                        backgroundColor = job.stateBackground,
-                        textColor = job.stateColor
+                        text = job.status,
+                        backgroundColor = stateBackground,
+                        textColor = stateColor
                     )
                 }
                 Text(text = job.code, color = LightTextSecondary)
@@ -489,5 +466,26 @@ private fun ActiveJobCard(job: ActiveJobUi) {
             Text(text = job.vehicle, color = LightTextSecondary)
         }
     }
+}
+
+private fun requestServiceColors(service: String): Pair<Color, Color> {
+    return when (service) {
+        "MoveMax" -> Secondary.copy(alpha = 0.14f) to Success
+        "MoveBig" -> Accent.copy(alpha = 0.14f) to Accent
+        else -> Primary.copy(alpha = 0.12f) to Primary
+    }
+}
+
+private fun statusColors(status: String): Pair<Color, Color> {
+    return when (status) {
+        "In Transit" -> Primary.copy(alpha = 0.12f) to Primary
+        "Loading" -> Accent.copy(alpha = 0.14f) to Accent
+        else -> Secondary.copy(alpha = 0.14f) to Success
+    }
+}
+
+private fun formatRs(value: Double): String {
+    val formatter = DecimalFormat("#,###")
+    return "Rs${formatter.format(value)}"
 }
 
