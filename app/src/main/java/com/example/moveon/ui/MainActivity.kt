@@ -4,27 +4,47 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+    import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.moveon.domain.model.UserRole
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
 import com.example.moveon.ui.components.PlaceholderFutureScreen
 import com.example.moveon.ui.Screen
+import com.example.moveon.ui.features.auth.AuthEvent
+import com.example.moveon.ui.features.auth.AuthFlowViewModel
 import com.example.moveon.ui.features.auth.AuthViewModel
 import com.example.moveon.ui.features.auth.LoginScreen
-import com.example.moveon.ui.features.auth.RegisterScreen
+import com.example.moveon.ui.features.auth.ProviderSetupStepOneScreen
+import com.example.moveon.ui.features.auth.ProviderSetupStepThreeScreen
+import com.example.moveon.ui.features.auth.ProviderSetupStepTwoScreen
+import com.example.moveon.ui.features.auth.RoleChooseScreen
+import com.example.moveon.ui.features.auth.SignUpScreen
 import com.example.moveon.ui.features.home.HomeScreen
 import com.example.moveon.ui.features.inventory.InventoryScreen
 import com.example.moveon.ui.features.onboarding.OnboardingScreen
+import com.example.moveon.ui.features.provider.ProviderDashboardScreen
 import com.example.moveon.ui.features.profile.ProfileScreen
 import com.example.moveon.ui.features.splash.SplashScreen
 import com.example.moveon.ui.theme.MoveOnTheme
@@ -38,6 +58,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MoveOnTheme {
                 val navController = rememberNavController()
+                val authFlowViewModel: AuthFlowViewModel = viewModel()
 
                 val onTabSelected: (DashboardTab) -> Unit = { tab ->
                     val route = tab.route
@@ -64,10 +85,11 @@ class MainActivity : ComponentActivity() {
 
                         SplashScreen(
                             onResolveSession = {
-                                val targetRoute = if (authViewModel.isUserLoggedIn()) {
-                                    Screen.Home.route
-                                } else {
-                                    Screen.Onboarding.route
+                                val role = authViewModel.currentUser.value?.role
+                                val targetRoute = when {
+                                    role == UserRole.PROVIDER -> Screen.ProviderDashboard.route
+                                    authViewModel.isUserLoggedIn() -> Screen.Home.route
+                                    else -> Screen.Onboarding.route
                                 }
 
                                 navController.navigate(targetRoute) {
@@ -91,32 +113,199 @@ class MainActivity : ComponentActivity() {
                     // 3. Login Route
                     composable(Screen.Login.route) {
                         LoginScreen(
-                            onNavigateToHome = {
-                                navController.navigate(Screen.Home.route) {
+                            onNavigateToHome = { role ->
+                                val destination = if (role == UserRole.PROVIDER) {
+                                    Screen.ProviderDashboard.route
+                                } else {
+                                    Screen.Home.route
+                                }
+                                navController.navigate(destination) {
                                     popUpTo(Screen.Login.route) { inclusive = true }
                                 }
                             },
                             onNavigateToRegister = {
-                                navController.navigate(Screen.Register.route)
+                                navController.navigate(Screen.SignUp.route)
                             }
                         )
                     }
 
-                    // 4. Register Route
-                    composable(Screen.Register.route) {
-                        RegisterScreen(
-                            onNavigateToHome = {
-                                navController.navigate(Screen.Home.route) {
-                                    popUpTo(Screen.Login.route) { inclusive = true }
+                    // 4. Sign Up Route
+                    composable(Screen.SignUp.route) {
+                        SignUpScreen(
+                            flowViewModel = authFlowViewModel,
+                            onNavigateToLogin = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.SignUp.route) { inclusive = true }
                                 }
                             },
-                            onNavigateToLogin = {
-                                navController.popBackStack()
+                            onNavigateToRoleChoose = { navController.navigate(Screen.RoleChoose.route) },
+                            onNavigateToHome = { role ->
+                                val destination = if (role == UserRole.PROVIDER) {
+                                    Screen.ProviderDashboard.route
+                                } else {
+                                    Screen.Home.route
+                                }
+                                navController.navigate(destination) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
                             }
                         )
                     }
 
-                    // 5. Home Route
+                    // 5. Role Choose Route
+                    composable(Screen.RoleChoose.route) {
+                        val authViewModel: AuthViewModel = hiltViewModel()
+                        val authState by authViewModel.authState
+                        val snackbarHostState = remember { SnackbarHostState() }
+
+                        LaunchedEffect(Unit) {
+                            authViewModel.eventFlow.collect { event ->
+                                when (event) {
+                                    is AuthViewModel.UiEvent.NavigateToHome -> {
+                                        val destination = if (event.role == UserRole.PROVIDER) {
+                                            Screen.ProviderDashboard.route
+                                        } else {
+                                            Screen.Home.route
+                                        }
+                                        navController.navigate(destination) {
+                                            popUpTo(Screen.Login.route) { inclusive = true }
+                                        }
+                                        authFlowViewModel.reset()
+                                    }
+                                    is AuthViewModel.UiEvent.ShowSnackbar -> {
+                                        snackbarHostState.showSnackbar(event.message)
+                                    }
+                                    else -> Unit
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            RoleChooseScreen(
+                                selectedRole = authFlowViewModel.selectedRole,
+                                onRoleSelected = { authFlowViewModel.selectedRole = it },
+                                onBack = { navController.popBackStack() },
+                                onNext = {
+                                    when (authFlowViewModel.selectedRole) {
+                                        UserRole.USER -> {
+                                            val (firstName, lastName) = authFlowViewModel.splitFirstAndLastName()
+                                            authViewModel.onEvent(
+                                                AuthEvent.RegisterUser(
+                                                    email = authFlowViewModel.email,
+                                                    password = authFlowViewModel.password,
+                                                    fName = firstName,
+                                                    lName = lastName,
+                                                    pNumber = authFlowViewModel.phoneNumber
+                                                )
+                                            )
+                                        }
+                                        UserRole.PROVIDER -> navController.navigate(Screen.ProviderSetupStepOne.route)
+                                        else -> Unit
+                                    }
+                                }
+                            )
+
+                            if (authState is AuthViewModel.AuthState.Error) {
+                                Text(
+                                    text = (authState as AuthViewModel.AuthState.Error).message,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 86.dp)
+                                )
+                            }
+
+                            SnackbarHost(
+                                hostState = snackbarHostState,
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                            )
+                        }
+                    }
+
+                    composable(Screen.ProviderSetupStepOne.route) {
+                        ProviderSetupStepOneScreen(
+                            flowViewModel = authFlowViewModel,
+                            onNext = { navController.navigate(Screen.ProviderSetupStepTwo.route) }
+                        )
+                    }
+
+                    composable(Screen.ProviderSetupStepTwo.route) {
+                        ProviderSetupStepTwoScreen(
+                            flowViewModel = authFlowViewModel,
+                            onNext = { navController.navigate(Screen.ProviderSetupStepThree.route) }
+                        )
+                    }
+
+                    composable(Screen.ProviderSetupStepThree.route) {
+                        val authViewModel: AuthViewModel = hiltViewModel()
+                        val authState by authViewModel.authState
+
+                        LaunchedEffect(Unit) {
+                            authViewModel.eventFlow.collect { event ->
+                                when (event) {
+                                    is AuthViewModel.UiEvent.NavigateToHome -> {
+                                        val destination = if (event.role == UserRole.PROVIDER) {
+                                            Screen.ProviderDashboard.route
+                                        } else {
+                                            Screen.Home.route
+                                        }
+                                        navController.navigate(destination) {
+                                            popUpTo(Screen.Login.route) { inclusive = true }
+                                        }
+                                        authFlowViewModel.reset()
+                                    }
+                                    else -> Unit
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            ProviderSetupStepThreeScreen(
+                                flowViewModel = authFlowViewModel,
+                                isLoading = authState is AuthViewModel.AuthState.Loading,
+                                onRegister = {
+                                    val (firstName, lastName) = authFlowViewModel.splitFirstAndLastName()
+                                    authViewModel.onEvent(
+                                        AuthEvent.RegisterProvider(
+                                            email = authFlowViewModel.email,
+                                            password = authFlowViewModel.password,
+                                            fName = firstName,
+                                            lName = lastName,
+                                            pNumber = authFlowViewModel.phoneNumber,
+                                            establishmentName = authFlowViewModel.businessName,
+                                            baseRate = authFlowViewModel.baseRate.toDoubleOrNull() ?: 0.0,
+                                            ratePerKm = authFlowViewModel.ratePerKm.toDoubleOrNull() ?: 0.0
+                                        )
+                                    )
+                                }
+                            )
+
+                            if (authState is AuthViewModel.AuthState.Error) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(16.dp)
+                                        .background(Color.White, RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text((authState as AuthViewModel.AuthState.Error).message)
+                                }
+                            }
+                        }
+                    }
+
+                    composable(Screen.ProviderDashboard.route) {
+                        ProviderDashboardScreen(
+                            onGoHome = {
+                                navController.navigate(Screen.SignUp.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    // 6. Home Route
                     composable(Screen.Home.route) {
                         HomeScreen(
                             onTabSelected = onTabSelected,
@@ -126,7 +315,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 6. Book Route (placeholder for future implementation)
+                    // 7. Book Route (placeholder for future implementation)
                     composable(Screen.Book.route) {
                         BottomTabPlaceholderScreen(
                             title = "Book",
@@ -135,14 +324,14 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 7. Inventory Route
+                    // 8. Inventory Route
                     composable(Screen.Inventory.route) {
                         InventoryScreen(
                             onTabSelected = onTabSelected
                         )
                     }
 
-                    // 8. Profile Route
+                    // 9. Profile Route
                     composable(Screen.Profile.route) {
                         ProfileScreen(
                             onTabSelected = onTabSelected,
@@ -173,7 +362,7 @@ private fun BottomTabPlaceholderScreen(
             MoveOnBottomBar(selectedTab = selectedTab, onTabSelected = onTabSelected)
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             PlaceholderFutureScreen(
                 title = title,
                 modifier = Modifier
