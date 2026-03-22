@@ -3,6 +3,7 @@ package com.example.moveon.ui.features.inventory
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,28 +17,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.ui.window.Dialog
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.moveon.ui.components.BoxIcon
-import com.example.moveon.ui.components.CategoryIcon
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
 import com.example.moveon.ui.components.MoveOnCategory
@@ -53,6 +59,9 @@ import com.example.moveon.ui.theme.LightSurfaceVariant
 import com.example.moveon.ui.theme.LightTextPrimary
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
+import com.example.moveon.ui.theme.Success
+import com.example.moveon.ui.theme.Tertiary
+import com.example.moveon.ui.theme.ErrorDeep
 
 private data class PackedBoxUi(
     val code: String,
@@ -71,15 +80,31 @@ private data class UnpackedBoxUi(
 fun InventoryScreen(
     onTabSelected: (DashboardTab) -> Unit = {},
     onScanBoxClick: () -> Unit = {},
-    onAddBoxClick: () -> Unit = {}
+    onAddBoxClick: () -> Unit = {},
+    viewModel: InventoryViewModel = hiltViewModel()
 ) {
+    val state = viewModel.uiState.value
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is InventoryUiEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     val packedBoxes = listOf(
         PackedBoxUi("Box LR-001", MoveOnCategory.LivingRoom, "15m³", 5, "2 hours ago"),
         PackedBoxUi("Box BR-001", MoveOnCategory.Bedroom, "15m³", 4, "3 hours ago"),
         PackedBoxUi("Box KT-001", MoveOnCategory.Kitchen, "15m³", 7, "5 hours ago")
     )
 
-    val unpackedBoxes = listOf(
+    val unpackedBoxes = state.createdBoxes.map {
+        UnpackedBoxUi(code = "Box ${it.id}", category = it.category)
+    } + listOf(
         UnpackedBoxUi("Box LR-002", MoveOnCategory.LivingRoom),
         UnpackedBoxUi("Box BR-002", MoveOnCategory.Bedroom),
         UnpackedBoxUi("Box BR-003", MoveOnCategory.Bedroom),
@@ -118,7 +143,11 @@ fun InventoryScreen(
                 Spacer(Modifier.height(12.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MoveOnStatCard(value = "8", label = "Boxes", modifier = Modifier.weight(1f))
+                    MoveOnStatCard(
+                        value = (8 + state.createdBoxes.size).toString(),
+                        label = "Boxes",
+                        modifier = Modifier.weight(1f)
+                    )
                     MoveOnStatCard(value = "17", label = "Items", modifier = Modifier.weight(1f))
                     MoveOnStatCard(
                         value = "8",
@@ -143,7 +172,10 @@ fun InventoryScreen(
                     )
                     MoveOnPillButton(
                         text = "Add Box",
-                        onClick = onAddBoxClick,
+                        onClick = {
+                            onAddBoxClick()
+                            viewModel.onEvent(InventoryEvent.OpenAddBoxDialog)
+                        },
                         modifier = Modifier.weight(1f),
                         background = Primary
                     )
@@ -178,6 +210,202 @@ fun InventoryScreen(
 
             item {
                 Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        if (state.isAddBoxDialogVisible) {
+            AddBoxDialog(
+                state = state,
+                onEvent = viewModel::onEvent
+            )
+        }
+    }
+}
+
+private data class DialogColorOption(
+    val hex: String,
+    val color: Color
+)
+
+private val dialogColorOptions = listOf(
+    DialogColorOption(hex = "#1565C0", color = Primary),
+    DialogColorOption(hex = "#FF6F00", color = Accent),
+    DialogColorOption(hex = "#2E7D32", color = Success),
+    DialogColorOption(hex = "#7C4DFF", color = Tertiary),
+    DialogColorOption(hex = "#D32F2F", color = ErrorDeep),
+    DialogColorOption(hex = "#00897B", color = Color(0xFF00897B))
+)
+
+@Composable
+private fun AddBoxDialog(
+    state: InventoryUiState,
+    onEvent: (InventoryEvent) -> Unit
+) {
+    Dialog(onDismissRequest = { onEvent(InventoryEvent.CloseAddBoxDialog) }) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = LightSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, LightBorder)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Add Box",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = LightTextPrimary
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Room Name",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = LightTextPrimary
+                    )
+
+                    TextField(
+                        value = state.roomName,
+                        onValueChange = { onEvent(InventoryEvent.RoomNameChanged(it)) },
+                        placeholder = {
+                            Text(
+                                text = "Enter room name",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LightTextSecondary
+                            )
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = LightSurfaceVariant,
+                            unfocusedContainerColor = LightSurfaceVariant,
+                            disabledContainerColor = LightSurfaceVariant,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            cursorColor = Primary
+                        )
+                    )
+
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MoveOnCategory.entries.forEach { category ->
+                            val selected = state.selectedCategory == category
+                            Text(
+                                text = toTitle(category),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LightTextPrimary,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (selected) Primary else LightBorder,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .background(if (selected) Primary.copy(alpha = 0.08f) else LightSurface)
+                                    .clickable { onEvent(InventoryEvent.CategorySelected(category)) }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Custom ID (Optional)",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = LightTextPrimary
+                    )
+
+                    TextField(
+                        value = state.customId,
+                        onValueChange = { onEvent(InventoryEvent.CustomIdChanged(it)) },
+                        placeholder = {
+                            Text(
+                                text = "e.g., LR-001",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LightTextSecondary
+                            )
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = LightSurfaceVariant,
+                            unfocusedContainerColor = LightSurfaceVariant,
+                            disabledContainerColor = LightSurfaceVariant,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            cursorColor = Primary
+                        )
+                    )
+
+                    Text(
+                        text = "Leave blank for auto-generated ID",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = LightTextSecondary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Color Code",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = LightTextPrimary
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        dialogColorOptions.forEach { colorOption ->
+                            val selected = state.selectedColorHex == colorOption.hex
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(colorOption.color)
+                                    .border(
+                                        width = if (selected) 2.dp else 1.dp,
+                                        color = if (selected) LightTextPrimary else LightBorder,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { onEvent(InventoryEvent.ColorSelected(colorOption.hex)) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (selected) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!state.errorMessage.isNullOrBlank()) {
+                    Text(
+                        text = state.errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                MoveOnPillButton(
+                    text = if (state.isSaving) "Creating..." else "Create Box",
+                    onClick = { onEvent(InventoryEvent.CreateBox) },
+                    modifier = Modifier.fillMaxWidth(),
+                    background = Primary,
+                    enabled = !state.isSaving
+                )
             }
         }
     }

@@ -33,10 +33,12 @@ fun MoveOnPillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     background: Color = Color(0xFF1565C0),
-    textColor: Color = Color.White
+    textColor: Color = Color.White,
+    enabled: Boolean = true
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(36.dp),
         colors = ButtonDefaults.buttonColors(containerColor = background),
         shape = RoundedCornerShape(20.dp),
