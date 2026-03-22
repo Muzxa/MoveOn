@@ -32,6 +32,7 @@ class AuthFlowViewModel : ViewModel() {
     var ratePerKm by mutableStateOf("")
 
     var cnicUploaded by mutableStateOf(false)
+    var cnicUploadLabel by mutableStateOf("")
 
     fun splitFirstAndLastName(): Pair<String, String> {
         val parts = fullName.trim().split(" ").filter { it.isNotBlank() }
@@ -66,6 +67,7 @@ class AuthFlowViewModel : ViewModel() {
         ratePerKm = ""
 
         cnicUploaded = false
+        cnicUploadLabel = ""
     }
 }
 

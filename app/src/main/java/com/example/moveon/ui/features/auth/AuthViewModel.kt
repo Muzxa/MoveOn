@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.moveon.data.local.dao.UserPreferences
 import com.example.moveon.domain.model.User
+import com.example.moveon.domain.model.UserRole
 import com.example.moveon.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +25,9 @@ class AuthViewModel @Inject constructor(
 ) : ViewModel() {
 
     fun isUserLoggedIn(): Boolean = authRepository.isUserLoggedIn()
+
+    suspend fun reserveAccount(email: String, pass: String): Result<Unit> =
+        authRepository.reserveAccount(email, pass)
 
     val currentUser: StateFlow<User?> = authRepository.currentUser
         .stateIn(
@@ -88,7 +92,7 @@ class AuthViewModel @Inject constructor(
                     _rememberMeEnabled.value = rememberMe
                     _rememberedEmail.value = if (rememberMe) email else ""
                     _authState.value = AuthState.Success
-                    _eventFlow.emit(UiEvent.NavigateToHome)
+                    _eventFlow.emit(UiEvent.NavigateToHome(it.role))
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Login failed")
@@ -102,7 +106,7 @@ class AuthViewModel @Inject constructor(
             authRepository.registerUser(email, pass, fName, lName, pNumber)
                 .onSuccess {
                     _authState.value = AuthState.Success
-                    _eventFlow.emit(UiEvent.NavigateToHome)
+                    _eventFlow.emit(UiEvent.NavigateToHome(it.role))
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Registration failed")
@@ -119,7 +123,7 @@ class AuthViewModel @Inject constructor(
             authRepository.registerProvider(email, pass, fName, lName, pNumber, establishmentName, baseRate, ratePerKm)
                 .onSuccess {
                     _authState.value = AuthState.Success
-                    _eventFlow.emit(UiEvent.NavigateToHome)
+                    _eventFlow.emit(UiEvent.NavigateToHome(it.role))
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Provider registration failed")
@@ -136,7 +140,7 @@ class AuthViewModel @Inject constructor(
             authRepository.registerDriver(email, pass, fName, lName, pNumber, providerId, vehicleId, licenseNo)
                 .onSuccess {
                     _authState.value = AuthState.Success
-                    _eventFlow.emit(UiEvent.NavigateToHome)
+                    _eventFlow.emit(UiEvent.NavigateToHome(it.role))
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Driver registration failed")
@@ -150,7 +154,7 @@ class AuthViewModel @Inject constructor(
             authRepository.signInWithGoogle(idToken)
                 .onSuccess {
                     _authState.value = AuthState.Success
-                    _eventFlow.emit(UiEvent.NavigateToHome)
+                    _eventFlow.emit(UiEvent.NavigateToHome(it.role))
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Google sign-in failed")
@@ -173,7 +177,7 @@ class AuthViewModel @Inject constructor(
     }
 
     sealed class UiEvent {
-        object NavigateToHome : UiEvent()
+        data class NavigateToHome(val role: UserRole) : UiEvent()
         object NavigateToLogin : UiEvent()
         data class ShowSnackbar(val message: String) : UiEvent()
     }
