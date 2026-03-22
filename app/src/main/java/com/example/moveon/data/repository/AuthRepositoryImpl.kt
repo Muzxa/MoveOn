@@ -2,11 +2,12 @@ package com.example.moveon.data.repository
 
 import com.example.moveon.data.mapper.toDomainModel
 import com.example.moveon.data.mapper.toSessionEntity
-import com.example.moveon.data.mapper.toDto
 import com.example.moveon.data.local.dao.UserSessionDao
 import com.example.moveon.domain.model.User
 import com.example.moveon.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -26,7 +27,39 @@ class AuthRepositoryImpl @Inject constructor(
     private val userSessionDao: UserSessionDao
 ): AuthRepository {
 
+    private fun mapAuthException(e: Exception): Exception {
+        return if (e is FirebaseAuthUserCollisionException) {
+            Exception("This email is already registered. Please sign in or use another email.")
+        } else {
+            e
+        }
+    }
+
     override fun isUserLoggedIn(): Boolean = firebaseAuth.currentUser != null
+
+    override suspend fun reserveAccount(email: String, pass: String): Result<Unit> {
+        return try {
+            val result = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
+            result.user ?: throw Exception("Registration failed")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(mapAuthException(e))
+        }
+    }
+
+    private suspend fun getOrCreateAuthUser(
+        email: String,
+        pass: String,
+        failureMessage: String
+    ): FirebaseUser {
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser != null && currentUser.email.equals(email, ignoreCase = true)) {
+            return currentUser
+        }
+
+        val result = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
+        return result.user ?: throw Exception(failureMessage)
+    }
 
     override val currentUser: Flow<User?> = callbackFlow {
         var firestoreListener: ListenerRegistration? = null
@@ -85,7 +118,7 @@ class AuthRepositoryImpl @Inject constructor(
             userSessionDao.upsertSession(user.toSessionEntity())
             Result.success(user)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(mapAuthException(e))
         }
     }
 
@@ -127,7 +160,7 @@ class AuthRepositoryImpl @Inject constructor(
                 Result.success(user)
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(mapAuthException(e))
         }
     }
 
@@ -139,8 +172,7 @@ class AuthRepositoryImpl @Inject constructor(
         pNumber: String
     ): Result<User> {
         return try {
-            val result = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
-            val firebaseUser = result.user ?: throw Exception("Registration failed")
+            val firebaseUser = getOrCreateAuthUser(email, pass, "Registration failed")
 
             val userDto = UserDto(
                 user_id = firebaseUser.uid,
@@ -161,7 +193,7 @@ class AuthRepositoryImpl @Inject constructor(
             userSessionDao.upsertSession(user.toSessionEntity())
             Result.success(user)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(mapAuthException(e))
         }
     }
 
@@ -176,8 +208,7 @@ class AuthRepositoryImpl @Inject constructor(
         ratePerKm: Double
     ): Result<User> {
         return try {
-            val result = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
-            val firebaseUser = result.user ?: throw Exception("Provider registration failed")
+            val firebaseUser = getOrCreateAuthUser(email, pass, "Provider registration failed")
 
             val userDto = UserDto(
                 user_id = firebaseUser.uid,
@@ -223,8 +254,7 @@ class AuthRepositoryImpl @Inject constructor(
         licenseNo: String
     ): Result<User> {
         return try {
-            val result = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
-            val firebaseUser = result.user ?: throw Exception("Driver registration failed")
+            val firebaseUser = getOrCreateAuthUser(email, pass, "Driver registration failed")
 
             val userDto = UserDto(
                 user_id = firebaseUser.uid,
@@ -252,7 +282,7 @@ class AuthRepositoryImpl @Inject constructor(
             userSessionDao.upsertSession(user.toSessionEntity())
             Result.success(user)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(mapAuthException(e))
         }
     }
 }
