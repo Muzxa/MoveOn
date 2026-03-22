@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface InventoryRepository {
     suspend fun addNewBox(box: Box)
+    suspend fun addNewBoxToCloud(box: Box, userId: String, colorHex: String): Result<Unit>
     fun getBoxesForMove(bookingId: String): Flow<List<Box>>
     fun getItemsInBox(boxId: String): Flow<List<Item>>
     suspend fun addItemToInventory(item: Item)
