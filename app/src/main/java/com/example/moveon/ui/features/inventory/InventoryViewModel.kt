@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -27,6 +28,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _eventFlow = MutableSharedFlow<InventoryUiEvent>()
     val eventFlow: SharedFlow<InventoryUiEvent> = _eventFlow.asSharedFlow()
+
+    init {
+        observeBoxes()
+    }
 
     fun onEvent(event: InventoryEvent) {
         when (event) {
@@ -86,6 +91,24 @@ class InventoryViewModel @Inject constructor(
                 )
             }
 
+            is InventoryEvent.SetPackedState -> {
+                setPackedState(event.boxUuid, event.boxId, event.packed)
+            }
+
+            is InventoryEvent.DeleteBox -> {
+                deleteBox(event.boxUuid, event.boxId)
+            }
+
+            is InventoryEvent.ModifyBox -> {
+                modifyBox(
+                    boxUuid = event.boxUuid,
+                    originalBoxId = event.originalBoxId,
+                    roomName = event.roomName,
+                    customId = event.customId,
+                    colorHex = event.colorHex
+                )
+            }
+
             InventoryEvent.CreateBox -> createBox()
         }
     }
@@ -120,17 +143,19 @@ class InventoryViewModel @Inject constructor(
                 .trim()
                 .uppercase()
                 .ifBlank { generateBoxId(room) }
+            val boxUuid = UUID.randomUUID().toString()
 
             val inferredCategory = roomNameToCategory(room)
 
             val box = Box(
-                id = boxId,
-                bookingId = "0",
+                boxUuid = boxUuid,
+                boxId = boxId,
+                bookingId = DEFAULT_BOOKING_ID,
                 vehicleId = null,
                 category = inferredCategory.name,
                 label = room,
                 volume = 15.0,
-                qrImagePath = ""
+                packed = false
             )
 
             val cloudResult = inventoryRepository.addNewBoxToCloud(
@@ -140,7 +165,7 @@ class InventoryViewModel @Inject constructor(
             )
 
             if (cloudResult.isFailure) {
-                val message = cloudResult.exceptionOrNull()?.message ?: "Could not save box"
+                val message = cloudResult.exceptionOrNull()?.message ?: "Could not save box to Firestore"
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     errorMessage = message
@@ -149,16 +174,17 @@ class InventoryViewModel @Inject constructor(
                 return@launch
             }
 
+            // Persist locally only after Firestore creation succeeds.
             runCatching {
                 inventoryRepository.addNewBox(box)
             }.onFailure { throwable ->
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    errorMessage = throwable.message ?: "Saved remotely but failed to cache locally"
+                    errorMessage = throwable.message ?: "Saved to Firestore but failed to cache locally"
                 )
                 _eventFlow.emit(
                     InventoryUiEvent.ShowToast(
-                        "Box $boxId synced to cloud, but local cache update failed"
+                        "Box $boxId saved to Firestore, but local cache failed"
                     )
                 )
                 return@launch
@@ -172,16 +198,159 @@ class InventoryViewModel @Inject constructor(
                 selectedCategory = MoveOnCategory.LivingRoom,
                 selectedColorHex = DEFAULT_COLOR_HEX,
                 isSaving = false,
-                errorMessage = null,
-                createdBoxes = listOf(
-                    CreatedInventoryBox(
-                        id = boxId,
-                        category = inferredCategory
-                    )
-                ) + _uiState.value.createdBoxes
+                errorMessage = null
             )
 
             _eventFlow.emit(InventoryUiEvent.ShowToast("Box $boxId created successfully"))
+        }
+    }
+
+    private fun observeBoxes() {
+        viewModelScope.launch {
+            inventoryRepository.getBoxesForMove(DEFAULT_BOOKING_ID)
+                .collect { boxes ->
+                    _uiState.value = _uiState.value.copy(
+                        storedBoxes = boxes.map {
+                            StoredInventoryBox(
+                                boxUuid = it.boxUuid,
+                                boxId = it.boxId,
+                                label = it.label,
+                                category = it.category.toMoveOnCategory(),
+                                packed = it.packed
+                            )
+                        }
+                    )
+                }
+        }
+    }
+
+    private fun setPackedState(boxUuid: String, boxId: String, packed: Boolean) {
+        viewModelScope.launch {
+            val uid = firebaseAuth.currentUser?.uid
+            if (uid.isNullOrBlank()) {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Sign in required to update $boxId"))
+                return@launch
+            }
+
+            val cloudResult = inventoryRepository.updateBoxPackedStatusInCloud(
+                boxUuid = boxUuid,
+                userId = uid,
+                isPacked = packed
+            )
+
+            if (cloudResult.isFailure) {
+                val message = cloudResult.exceptionOrNull()?.message ?: "Cloud update failed"
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to update $boxId: $message"))
+                return@launch
+            }
+
+            runCatching {
+                inventoryRepository.updateBoxPackedStatus(boxUuid, packed)
+            }.onFailure {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId updated in Firestore, local cache failed"))
+                return@launch
+            }
+
+            val statusLabel = if (packed) "packed" else "unpacked"
+            _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId marked as $statusLabel"))
+        }
+    }
+
+    private fun deleteBox(boxUuid: String, boxId: String) {
+        viewModelScope.launch {
+            val uid = firebaseAuth.currentUser?.uid
+            if (uid.isNullOrBlank()) {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Sign in required to delete $boxId"))
+                return@launch
+            }
+
+            val cloudResult = inventoryRepository.deleteBoxFromCloud(
+                boxUuid = boxUuid,
+                userId = uid
+            )
+
+            if (cloudResult.isFailure) {
+                val message = cloudResult.exceptionOrNull()?.message ?: "Cloud delete failed"
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to delete $boxId: $message"))
+                return@launch
+            }
+
+            runCatching {
+                inventoryRepository.deleteBox(boxUuid)
+            }.onFailure {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId deleted in Firestore, local cache failed"))
+                return@launch
+            }
+
+            _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId deleted"))
+        }
+    }
+
+    private fun modifyBox(
+        boxUuid: String,
+        originalBoxId: String,
+        roomName: String,
+        customId: String,
+        colorHex: String
+    ) {
+        val room = roomName.trim()
+        if (room.isBlank()) {
+            viewModelScope.launch {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Room name is required"))
+            }
+            return
+        }
+
+        val nextBoxId = customId.trim().uppercase().ifBlank { originalBoxId }
+        val nextCategory = roomNameToCategory(room).name
+
+        viewModelScope.launch {
+            val uid = firebaseAuth.currentUser?.uid
+            if (uid.isNullOrBlank()) {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Sign in required to modify $originalBoxId"))
+                return@launch
+            }
+
+            val cloudResult = inventoryRepository.updateBoxInfoInCloud(
+                boxUuid = boxUuid,
+                userId = uid,
+                boxId = nextBoxId,
+                category = nextCategory,
+                label = room,
+                colorHex = colorHex
+            )
+
+            if (cloudResult.isFailure) {
+                val message = cloudResult.exceptionOrNull()?.message ?: "Cloud update failed"
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to modify $originalBoxId: $message"))
+                return@launch
+            }
+
+            runCatching {
+                inventoryRepository.updateBoxInfo(
+                    boxUuid = boxUuid,
+                    boxId = nextBoxId,
+                    category = nextCategory,
+                    label = room
+                )
+            }.onFailure {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$originalBoxId updated in Firestore, local cache failed"))
+                return@launch
+            }
+
+            _eventFlow.emit(InventoryUiEvent.ShowToast("$nextBoxId updated"))
+        }
+    }
+
+    private fun String.toMoveOnCategory(): MoveOnCategory {
+        return when (trim().lowercase()) {
+            "livingroom", "living_room", "living room" -> MoveOnCategory.LivingRoom
+            "bedroom", "bed room" -> MoveOnCategory.Bedroom
+            "kitchen" -> MoveOnCategory.Kitchen
+            "bathroom", "bath room" -> MoveOnCategory.Bathroom
+            "storage" -> MoveOnCategory.Storage
+            "office" -> MoveOnCategory.Office
+            else -> roomNameToCategory(this)
         }
     }
 
@@ -221,6 +390,7 @@ class InventoryViewModel @Inject constructor(
 
     companion object {
         const val DEFAULT_COLOR_HEX = "#1565C0"
+        private const val DEFAULT_BOOKING_ID = 0
     }
 }
 
@@ -233,12 +403,15 @@ data class InventoryUiState(
     val selectedColorHex: String = InventoryViewModel.DEFAULT_COLOR_HEX,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
-    val createdBoxes: List<CreatedInventoryBox> = emptyList()
+    val storedBoxes: List<StoredInventoryBox> = emptyList()
 )
 
-data class CreatedInventoryBox(
-    val id: String,
-    val category: MoveOnCategory
+data class StoredInventoryBox(
+    val boxUuid: String,
+    val boxId: String,
+    val label: String,
+    val category: MoveOnCategory,
+    val packed: Boolean
 )
 
 sealed class InventoryEvent {
@@ -249,6 +422,15 @@ sealed class InventoryEvent {
     data class CustomIdChanged(val value: String) : InventoryEvent()
     data class CategorySelected(val category: MoveOnCategory) : InventoryEvent()
     data class ColorSelected(val hex: String) : InventoryEvent()
+    data class SetPackedState(val boxUuid: String, val boxId: String, val packed: Boolean) : InventoryEvent()
+    data class DeleteBox(val boxUuid: String, val boxId: String) : InventoryEvent()
+    data class ModifyBox(
+        val boxUuid: String,
+        val originalBoxId: String,
+        val roomName: String,
+        val customId: String,
+        val colorHex: String
+    ) : InventoryEvent()
     object CreateBox : InventoryEvent()
 }
 
