@@ -344,7 +344,7 @@ class MainActivity : ComponentActivity() {
                             onTabSelected = onTabSelected,
                             onNavigateToLogin = {
                                 navController.navigate(Screen.Login.route) {
-                                    popUpTo(Screen.Splash.route) {
+                                    popUpTo(navController.graph.id) {
                                         inclusive = true
                                         saveState = false
                                     }
