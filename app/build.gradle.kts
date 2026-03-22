@@ -100,4 +100,20 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("androidx.print:print:1.1.0")
 
+    // CameraX
+    implementation("androidx.camera:camera-core:1.4.2")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
+
+    // ML Kit Barcode Scanner
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // Guava for ListenableFuture
+    implementation("com.google.guava:guava:32.1.3-android")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
 }

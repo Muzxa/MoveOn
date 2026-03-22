@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -28,6 +31,9 @@ class InventoryViewModel @Inject constructor(
 
     private val _eventFlow = MutableSharedFlow<InventoryUiEvent>()
     val eventFlow: SharedFlow<InventoryUiEvent> = _eventFlow.asSharedFlow()
+
+    private val pendingCloudActions = mutableListOf<PendingCloudAction>()
+    private var retryJob: Job? = null
 
     init {
         observeBoxes()
@@ -232,6 +238,14 @@ class InventoryViewModel @Inject constructor(
                 return@launch
             }
 
+            // Optimistic local update first.
+            runCatching {
+                inventoryRepository.updateBoxPackedStatus(boxUuid, packed)
+            }.onFailure {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to update $boxId locally"))
+                return@launch
+            }
+
             val cloudResult = inventoryRepository.updateBoxPackedStatusInCloud(
                 boxUuid = boxUuid,
                 userId = uid,
@@ -239,20 +253,18 @@ class InventoryViewModel @Inject constructor(
             )
 
             if (cloudResult.isFailure) {
-                val message = cloudResult.exceptionOrNull()?.message ?: "Cloud update failed"
-                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to update $boxId: $message"))
-                return@launch
+                enqueuePendingAction(
+                    PendingCloudAction.UpdatePacked(
+                        boxUuid = boxUuid,
+                        boxId = boxId,
+                        packed = packed
+                    )
+                )
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId updated locally. Cloud sync will retry."))
+            } else {
+                val statusLabel = if (packed) "packed" else "unpacked"
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId marked as $statusLabel"))
             }
-
-            runCatching {
-                inventoryRepository.updateBoxPackedStatus(boxUuid, packed)
-            }.onFailure {
-                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId updated in Firestore, local cache failed"))
-                return@launch
-            }
-
-            val statusLabel = if (packed) "packed" else "unpacked"
-            _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId marked as $statusLabel"))
         }
     }
 
@@ -264,25 +276,30 @@ class InventoryViewModel @Inject constructor(
                 return@launch
             }
 
+            // Optimistic local delete first.
+            runCatching {
+                inventoryRepository.deleteBox(boxUuid)
+            }.onFailure {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to delete $boxId locally"))
+                return@launch
+            }
+
             val cloudResult = inventoryRepository.deleteBoxFromCloud(
                 boxUuid = boxUuid,
                 userId = uid
             )
 
             if (cloudResult.isFailure) {
-                val message = cloudResult.exceptionOrNull()?.message ?: "Cloud delete failed"
-                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to delete $boxId: $message"))
-                return@launch
+                enqueuePendingAction(
+                    PendingCloudAction.Delete(
+                        boxUuid = boxUuid,
+                        boxId = boxId
+                    )
+                )
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId deleted locally. Cloud sync will retry."))
+            } else {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId deleted"))
             }
-
-            runCatching {
-                inventoryRepository.deleteBox(boxUuid)
-            }.onFailure {
-                _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId deleted in Firestore, local cache failed"))
-                return@launch
-            }
-
-            _eventFlow.emit(InventoryUiEvent.ShowToast("$boxId deleted"))
         }
     }
 
@@ -311,6 +328,19 @@ class InventoryViewModel @Inject constructor(
                 return@launch
             }
 
+            // Optimistic local update first.
+            runCatching {
+                inventoryRepository.updateBoxInfo(
+                    boxUuid = boxUuid,
+                    boxId = nextBoxId,
+                    category = nextCategory,
+                    label = room
+                )
+            }.onFailure {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to modify $originalBoxId locally"))
+                return@launch
+            }
+
             val cloudResult = inventoryRepository.updateBoxInfoInCloud(
                 boxUuid = boxUuid,
                 userId = uid,
@@ -321,24 +351,81 @@ class InventoryViewModel @Inject constructor(
             )
 
             if (cloudResult.isFailure) {
-                val message = cloudResult.exceptionOrNull()?.message ?: "Cloud update failed"
-                _eventFlow.emit(InventoryUiEvent.ShowToast("Failed to modify $originalBoxId: $message"))
-                return@launch
-            }
-
-            runCatching {
-                inventoryRepository.updateBoxInfo(
-                    boxUuid = boxUuid,
-                    boxId = nextBoxId,
-                    category = nextCategory,
-                    label = room
+                enqueuePendingAction(
+                    PendingCloudAction.Modify(
+                        boxUuid = boxUuid,
+                        originalBoxId = originalBoxId,
+                        nextBoxId = nextBoxId,
+                        category = nextCategory,
+                        label = room,
+                        colorHex = colorHex
+                    )
                 )
-            }.onFailure {
-                _eventFlow.emit(InventoryUiEvent.ShowToast("$originalBoxId updated in Firestore, local cache failed"))
-                return@launch
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$nextBoxId updated locally. Cloud sync will retry."))
+            } else {
+                _eventFlow.emit(InventoryUiEvent.ShowToast("$nextBoxId updated"))
+            }
+        }
+    }
+
+    private fun enqueuePendingAction(action: PendingCloudAction) {
+        pendingCloudActions.removeAll { it.key() == action.key() }
+        pendingCloudActions.add(action)
+        ensureRetryLoop()
+    }
+
+    private fun ensureRetryLoop() {
+        if (retryJob?.isActive == true) return
+
+        retryJob = viewModelScope.launch {
+            while (isActive) {
+                if (pendingCloudActions.isEmpty()) {
+                    delay(15_000)
+                    continue
+                }
+
+                retryPendingCloudActions()
+                delay(15_000)
+            }
+        }
+    }
+
+    private suspend fun retryPendingCloudActions() {
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        val iterator = pendingCloudActions.toList()
+
+        iterator.forEach { action ->
+            val result = when (action) {
+                is PendingCloudAction.UpdatePacked -> {
+                    inventoryRepository.updateBoxPackedStatusInCloud(
+                        boxUuid = action.boxUuid,
+                        userId = uid,
+                        isPacked = action.packed
+                    )
+                }
+
+                is PendingCloudAction.Delete -> {
+                    inventoryRepository.deleteBoxFromCloud(
+                        boxUuid = action.boxUuid,
+                        userId = uid
+                    )
+                }
+
+                is PendingCloudAction.Modify -> {
+                    inventoryRepository.updateBoxInfoInCloud(
+                        boxUuid = action.boxUuid,
+                        userId = uid,
+                        boxId = action.nextBoxId,
+                        category = action.category,
+                        label = action.label,
+                        colorHex = action.colorHex
+                    )
+                }
             }
 
-            _eventFlow.emit(InventoryUiEvent.ShowToast("$nextBoxId updated"))
+            if (result.isSuccess) {
+                pendingCloudActions.removeAll { it.key() == action.key() }
+            }
         }
     }
 
@@ -436,4 +523,34 @@ sealed class InventoryEvent {
 
 sealed class InventoryUiEvent {
     data class ShowToast(val message: String) : InventoryUiEvent()
+}
+
+private sealed class PendingCloudAction {
+    data class UpdatePacked(
+        val boxUuid: String,
+        val boxId: String,
+        val packed: Boolean
+    ) : PendingCloudAction()
+
+    data class Delete(
+        val boxUuid: String,
+        val boxId: String
+    ) : PendingCloudAction()
+
+    data class Modify(
+        val boxUuid: String,
+        val originalBoxId: String,
+        val nextBoxId: String,
+        val category: String,
+        val label: String,
+        val colorHex: String
+    ) : PendingCloudAction()
+
+    fun key(): String {
+        return when (this) {
+            is UpdatePacked -> "updatePacked:$boxUuid"
+            is Delete -> "delete:$boxUuid"
+            is Modify -> "modify:$boxUuid"
+        }
+    }
 }

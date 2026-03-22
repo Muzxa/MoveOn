@@ -13,7 +13,7 @@ import com.example.moveon.data.local.entities.UserSessionEntity
 
 @Database(
     entities = [BoxEntity::class, ItemEntity::class, UserSessionEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class MoveOnDatabase : RoomDatabase() {
@@ -97,6 +97,14 @@ abstract class MoveOnDatabase : RoomDatabase() {
                 )
 
                 database.execSQL("PRAGMA foreign_keys=ON")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE `items` ADD COLUMN `quantity` INTEGER NOT NULL DEFAULT 1"
+                )
             }
         }
     }

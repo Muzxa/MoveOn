@@ -14,6 +14,17 @@ sealed class Screen (val route: String) {
     object Book : Screen("book")
     object Logistics : Screen("logistics")
     object Inventory : Screen("inventory")
+    object ScanBox : Screen("scan_box")
+    object AddItemCamera : Screen("add_item_camera/{boxUuid}/{boxId}") {
+        fun createRoute(boxUuid: String, boxId: String): String {
+            return "add_item_camera/$boxUuid/$boxId"
+        }
+    }
+    object BoxItems : Screen("box_items/{boxUuid}/{scannedFromQr}") {
+        fun createRoute(boxUuid: String, scannedFromQr: Boolean): String {
+            return "box_items/$boxUuid/$scannedFromQr"
+        }
+    }
     object Profile : Screen("profile")
     object ProviderProfile : Screen("provider_profile")
     object Settings : Screen("settings")

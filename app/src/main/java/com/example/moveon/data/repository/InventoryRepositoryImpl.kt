@@ -7,6 +7,7 @@ import com.example.moveon.data.mapper.toEntity
 import com.example.moveon.domain.model.Box
 import com.example.moveon.domain.model.Item
 import com.example.moveon.domain.repository.InventoryRepository
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.Flow
@@ -75,18 +76,6 @@ class InventoryRepositoryImpl @Inject constructor(
             failures += "users/{uid} merge inventory_boxes: ${it.message}"
         }
 
-        // Tertiary path: top-level collection with ownership field.
-        runCatching {
-            firestore.collection("boxes")
-                .document("${userId}_${box.boxUuid}")
-                .set(payload)
-                .await()
-        }.onSuccess {
-            return Result.success(Unit)
-        }.onFailure {
-            failures += "boxes: ${it.message}"
-        }
-
         return Result.failure(
             IllegalStateException(
                 "Failed to save box to Firestore. Attempts: ${failures.joinToString(" | ")}"
@@ -126,20 +115,20 @@ class InventoryRepositoryImpl @Inject constructor(
         }
 
         runCatching {
-            firestore.collection("boxes")
-                .document("${userId}_${boxUuid}")
-                .set(
+            firestore.collection("users")
+                .document(userId)
+                .update(
                     mapOf(
-                        "packed" to isPacked,
-                        "updated_at" to now
-                    ),
-                    SetOptions.merge()
+                        "inventory_boxes.${boxUuid}.packed" to isPacked,
+                        "inventory_boxes.${boxUuid}.updated_at" to now,
+                        "inventory_updated_at" to now
+                    )
                 )
                 .await()
         }.onSuccess {
             return Result.success(Unit)
         }.onFailure {
-            failures += "boxes packed update: ${it.message}"
+            failures += "users/{uid} inventory_boxes packed update: ${it.message}"
         }
 
         return Result.failure(
@@ -195,14 +184,23 @@ class InventoryRepositoryImpl @Inject constructor(
         }
 
         runCatching {
-            firestore.collection("boxes")
-                .document("${userId}_${boxUuid}")
-                .set(payload, SetOptions.merge())
+            firestore.collection("users")
+                .document(userId)
+                .update(
+                    mapOf(
+                        "inventory_boxes.${boxUuid}.box_id" to boxId,
+                        "inventory_boxes.${boxUuid}.category" to category,
+                        "inventory_boxes.${boxUuid}.label" to label,
+                        "inventory_boxes.${boxUuid}.color_hex" to colorHex,
+                        "inventory_boxes.${boxUuid}.updated_at" to now,
+                        "inventory_updated_at" to now
+                    )
+                )
                 .await()
         }.onSuccess {
             return Result.success(Unit)
         }.onFailure {
-            failures += "boxes info update: ${it.message}"
+            failures += "users/{uid} inventory_boxes info update: ${it.message}"
         }
 
         return Result.failure(
@@ -233,14 +231,19 @@ class InventoryRepositoryImpl @Inject constructor(
         }
 
         runCatching {
-            firestore.collection("boxes")
-                .document("${userId}_${boxUuid}")
-                .delete()
+            firestore.collection("users")
+                .document(userId)
+                .update(
+                    mapOf(
+                        "inventory_boxes.${boxUuid}" to FieldValue.delete(),
+                        "inventory_updated_at" to System.currentTimeMillis()
+                    )
+                )
                 .await()
         }.onSuccess {
             return Result.success(Unit)
         }.onFailure {
-            failures += "boxes delete: ${it.message}"
+            failures += "users/{uid} inventory_boxes delete: ${it.message}"
         }
 
         return Result.failure(

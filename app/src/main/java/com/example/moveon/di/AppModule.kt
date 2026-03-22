@@ -28,6 +28,7 @@ object AppModule {
         )
             .addMigrations(MoveOnDatabase.MIGRATION_1_2)
             .addMigrations(MoveOnDatabase.MIGRATION_2_3)
+            .addMigrations(MoveOnDatabase.MIGRATION_3_4)
             .build()
     }
 

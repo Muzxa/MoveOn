@@ -22,6 +22,7 @@ data class ItemEntity(
     val item_id: Int = 0,
     val box_id: String,
     val name: String,
+    val quantity: Int,
     val description: String?,
     val image_url: String?,
     val is_fragile: Boolean

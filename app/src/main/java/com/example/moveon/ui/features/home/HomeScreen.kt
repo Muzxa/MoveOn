@@ -3,6 +3,7 @@ package com.example.moveon.ui.features.home
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,7 @@ import com.example.moveon.ui.theme.Success
 fun HomeScreen(
     onTabSelected: (DashboardTab) -> Unit = {},
     onManageInventoryClick: () -> Unit = {},
+    onScanBoxClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state = viewModel.homeState.value
@@ -151,6 +153,7 @@ fun HomeScreen(
                     icon = Icons.Outlined.QrCode2,
                     tint = Accent,
                     bg = BlueTint,
+                    onClick = onScanBoxClick,
                     modifier = Modifier.weight(1f)
                 )
                 QuickActionCard(
@@ -443,10 +446,13 @@ private fun QuickActionCard(
     icon: ImageVector,
     tint: Color,
     bg: Color,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(110.dp),
+        modifier = modifier
+            .height(110.dp)
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = LightBackground),
         border = BorderStroke(1.dp, LightBorder)

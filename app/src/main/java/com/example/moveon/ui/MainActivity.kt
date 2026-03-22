@@ -43,7 +43,10 @@ import com.example.moveon.ui.features.auth.ProviderSetupStepTwoScreen
 import com.example.moveon.ui.features.auth.RoleChooseScreen
 import com.example.moveon.ui.features.auth.SignUpScreen
 import com.example.moveon.ui.features.home.HomeScreen
+import com.example.moveon.ui.features.inventory.AddItemCameraScreen
+import com.example.moveon.ui.features.inventory.BoxItemsScreen
 import com.example.moveon.ui.features.inventory.InventoryScreen
+import com.example.moveon.ui.features.inventory.ScanBoxScreen
 import com.example.moveon.ui.features.onboarding.OnboardingScreen
 import com.example.moveon.ui.features.provider.ProviderDashboardScreen
 import com.example.moveon.ui.features.profile.ProfileScreen
@@ -319,6 +322,9 @@ class MainActivity : ComponentActivity() {
                             onTabSelected = onTabSelected,
                             onManageInventoryClick = {
                                 onTabSelected(DashboardTab.Inventory)
+                            },
+                            onScanBoxClick = {
+                                navController.navigate(Screen.ScanBox.route)
                             }
                         )
                     }
@@ -335,7 +341,92 @@ class MainActivity : ComponentActivity() {
                     // 8. Inventory Route
                     composable(Screen.Inventory.route) {
                         InventoryScreen(
-                            onTabSelected = onTabSelected
+                            onTabSelected = onTabSelected,
+                            onScanBoxClick = {
+                                navController.navigate(Screen.ScanBox.route)
+                            },
+                            onAddItemsClick = { boxUuid, boxId ->
+                                navController.navigate(
+                                    Screen.AddItemCamera.createRoute(
+                                        boxUuid = boxUuid,
+                                        boxId = boxId
+                                    )
+                                )
+                            },
+                            onBoxClick = { boxUuid, scannedFromQr ->
+                                navController.navigate(
+                                    Screen.BoxItems.createRoute(
+                                        boxUuid = boxUuid,
+                                        scannedFromQr = scannedFromQr
+                                    )
+                                )
+                            }
+                        )
+                    }
+
+                    composable(Screen.ScanBox.route) {
+                        ScanBoxScreen(
+                            onBack = {
+                                navController.popBackStack()
+                            },
+                            onScanned = { scannedBoxUuid ->
+                                navController.navigate(
+                                    Screen.BoxItems.createRoute(
+                                        boxUuid = scannedBoxUuid,
+                                        scannedFromQr = true
+                                    )
+                                ) {
+                                    popUpTo(Screen.ScanBox.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.BoxItems.route) { backStackEntry ->
+                        val boxUuid = backStackEntry.arguments?.getString("boxUuid").orEmpty()
+                        val scannedFromQr = backStackEntry.arguments
+                            ?.getString("scannedFromQr")
+                            ?.toBooleanStrictOrNull()
+                            ?: false
+
+                        BoxItemsScreen(
+                            boxUuid = boxUuid,
+                            scannedFromQr = scannedFromQr,
+                            onBack = { navController.popBackStack() },
+                            onAddItem = { selectedBoxUuid, selectedBoxId ->
+                                navController.navigate(
+                                    Screen.AddItemCamera.createRoute(
+                                        boxUuid = selectedBoxUuid,
+                                        boxId = selectedBoxId
+                                    )
+                                )
+                            },
+                            onScanAnotherBox = {
+                                navController.navigate(Screen.ScanBox.route)
+                            }
+                        )
+                    }
+
+                    composable(Screen.AddItemCamera.route) { backStackEntry ->
+                        val boxUuid = backStackEntry.arguments?.getString("boxUuid").orEmpty()
+                        val boxId = backStackEntry.arguments?.getString("boxId").orEmpty()
+
+                        AddItemCameraScreen(
+                            boxUuid = boxUuid,
+                            boxId = boxId,
+                            onBack = { navController.popBackStack() },
+                            onItemSaved = {
+                                navController.navigate(
+                                    Screen.BoxItems.createRoute(
+                                        boxUuid = boxUuid,
+                                        scannedFromQr = false
+                                    )
+                                ) {
+                                    popUpTo(Screen.AddItemCamera.route) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
                         )
                     }
 

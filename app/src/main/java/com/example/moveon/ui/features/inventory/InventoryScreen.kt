@@ -115,6 +115,7 @@ private data class UnpackedBoxUi(
 )
 
 private data class QrViewerData(
+    val boxUuid: String,
     val boxId: String,
     val roomLabel: String
 )
@@ -130,6 +131,8 @@ private data class ModifyBoxDialogData(
 fun InventoryScreen(
     onTabSelected: (DashboardTab) -> Unit = {},
     onScanBoxClick: () -> Unit = {},
+    onBoxClick: (boxUuid: String, scannedFromQr: Boolean) -> Unit = { _, _ -> },
+    onAddItemsClick: (boxUuid: String, boxId: String) -> Unit = { _, _ -> },
     onAddBoxClick: () -> Unit = {},
     viewModel: InventoryViewModel = hiltViewModel()
 ) {
@@ -265,14 +268,19 @@ fun InventoryScreen(
             items(packedBoxes.size) { index ->
                 PackedBoxCard(
                     box = packedBoxes[index],
-                    onViewQrCodeClick = { boxCode, roomLabel ->
+                    onCardClick = { onBoxClick(packedBoxes[index].boxUuid, false) },
+                    onViewQrCodeClick = { boxUuid, boxCode, roomLabel ->
                         qrViewerData = QrViewerData(
+                            boxUuid = boxUuid,
                             boxId = extractBoxId(boxCode),
                             roomLabel = roomLabel
                         )
                     },
                     onAddItemsClick = {
-                        Toast.makeText(context, "Add items coming soon", Toast.LENGTH_SHORT).show()
+                        onAddItemsClick(
+                            packedBoxes[index].boxUuid,
+                            extractBoxId(packedBoxes[index].code)
+                        )
                     },
                     onMarkAsUnpackedClick = {
                         viewModel.onEvent(
@@ -325,14 +333,19 @@ fun InventoryScreen(
             items(unpackedBoxes.size) { index ->
                 UnpackedBoxCard(
                     box = unpackedBoxes[index],
-                    onViewQrCodeClick = { boxCode, roomLabel ->
+                    onCardClick = { onBoxClick(unpackedBoxes[index].boxUuid, false) },
+                    onViewQrCodeClick = { boxUuid, boxCode, roomLabel ->
                         qrViewerData = QrViewerData(
+                            boxUuid = boxUuid,
                             boxId = extractBoxId(boxCode),
                             roomLabel = roomLabel
                         )
                     },
                     onAddItemsClick = {
-                        Toast.makeText(context, "Add items coming soon", Toast.LENGTH_SHORT).show()
+                        onAddItemsClick(
+                            unpackedBoxes[index].boxUuid,
+                            extractBoxId(unpackedBoxes[index].code)
+                        )
                     },
                     onMarkAsUnpackedClick = {
                         viewModel.onEvent(
@@ -377,6 +390,7 @@ fun InventoryScreen(
 
         qrViewerData?.let { data ->
             ViewQrCodeDialog(
+                boxUuid = data.boxUuid,
                 boxId = data.boxId,
                 roomLabel = data.roomLabel,
                 onDismiss = { qrViewerData = null }
@@ -857,8 +871,9 @@ private fun SearchBarPlaceholder() {
 @Composable
 private fun PackedBoxCard(
     box: PackedBoxUi,
-    onViewQrCodeClick: (String, String) -> Unit,
-    onAddItemsClick: (String) -> Unit,
+    onCardClick: () -> Unit,
+    onViewQrCodeClick: (String, String, String) -> Unit,
+    onAddItemsClick: () -> Unit,
     onMarkAsUnpackedClick: (String) -> Unit,
     onEditBoxClick: (String) -> Unit,
     onDeleteBoxClick: (String) -> Unit
@@ -866,7 +881,9 @@ private fun PackedBoxCard(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onCardClick),
         colors = CardDefaults.cardColors(containerColor = LightSurface),
         border = BorderStroke(1.dp, LightBorder),
         shape = RoundedCornerShape(16.dp)
@@ -922,7 +939,7 @@ private fun PackedBoxCard(
                             packedActionLabel = "Mark As Unpacked",
                             onAddItems = {
                                 menuExpanded = false
-                                onAddItemsClick(box.code)
+                                onAddItemsClick()
                             },
                             onTogglePackedState = {
                                 menuExpanded = false
@@ -930,7 +947,7 @@ private fun PackedBoxCard(
                             },
                             onViewQrCode = {
                                 menuExpanded = false
-                                onViewQrCodeClick(box.code, toTitle(box.category))
+                                onViewQrCodeClick(box.boxUuid, box.code, toTitle(box.category))
                             },
                             onEditBox = {
                                 menuExpanded = false
@@ -986,8 +1003,9 @@ private fun PackedBoxCard(
 @Composable
 private fun UnpackedBoxCard(
     box: UnpackedBoxUi,
-    onViewQrCodeClick: (String, String) -> Unit,
-    onAddItemsClick: (String) -> Unit,
+    onCardClick: () -> Unit,
+    onViewQrCodeClick: (String, String, String) -> Unit,
+    onAddItemsClick: () -> Unit,
     onMarkAsUnpackedClick: (String) -> Unit,
     onEditBoxClick: (String) -> Unit,
     onDeleteBoxClick: (String) -> Unit
@@ -995,7 +1013,9 @@ private fun UnpackedBoxCard(
     var menuExpanded by remember { mutableStateOf(false) }
     val spec = box.category.iconSpec()
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onCardClick),
         colors = CardDefaults.cardColors(containerColor = LightSurface),
         border = BorderStroke(1.dp, LightBorder),
         shape = RoundedCornerShape(16.dp)
@@ -1046,7 +1066,7 @@ private fun UnpackedBoxCard(
                     packedActionLabel = "Mark As Packed",
                     onAddItems = {
                         menuExpanded = false
-                        onAddItemsClick(box.code)
+                        onAddItemsClick()
                     },
                     onTogglePackedState = {
                         menuExpanded = false
@@ -1055,6 +1075,7 @@ private fun UnpackedBoxCard(
                     onViewQrCode = {
                         menuExpanded = false
                         onViewQrCodeClick(
+                            box.boxUuid,
                             box.code,
                             box.roomLabel.ifBlank { toTitle(box.category) }
                         )
@@ -1157,6 +1178,7 @@ private fun MenuActionRow(
 
 @Composable
 private fun ViewQrCodeDialog(
+    boxUuid: String,
     boxId: String,
     roomLabel: String,
     onDismiss: () -> Unit
@@ -1164,9 +1186,9 @@ private fun ViewQrCodeDialog(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val coroutineScope = rememberCoroutineScope()
-    val qrBitmap = remember(boxId) {
+    val qrBitmap = remember(boxUuid) {
         generateQrBitmapOrNull(
-            value = boxId,
+            value = boxUuid,
             size = 260,
             darkColor = android.graphics.Color.parseColor("#1565C0"),
             lightColor = android.graphics.Color.TRANSPARENT
