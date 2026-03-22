@@ -97,5 +97,7 @@ dependencies {
 
     // JSON serialization library, works with the Kotlin serialization plugin
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("androidx.print:print:1.1.0")
 
 }
