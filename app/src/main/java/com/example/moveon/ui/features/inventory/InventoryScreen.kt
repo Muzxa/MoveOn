@@ -236,6 +236,15 @@ private val dialogColorOptions = listOf(
     DialogColorOption(hex = "#00897B", color = Color(0xFF00897B))
 )
 
+private val roomNameSuggestions = listOf(
+    "Living Room",
+    "Bedroom",
+    "Kitchen",
+    "Bathroom",
+    "Storage",
+    "Office"
+)
+
 @Composable
 private fun AddBoxDialog(
     state: InventoryUiState,
@@ -270,6 +279,7 @@ private fun AddBoxDialog(
                     TextField(
                         value = state.roomName,
                         onValueChange = { onEvent(InventoryEvent.RoomNameChanged(it)) },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = LightTextPrimary),
                         placeholder = {
                             Text(
                                 text = "Enter room name",
@@ -284,6 +294,12 @@ private fun AddBoxDialog(
                             focusedContainerColor = LightSurfaceVariant,
                             unfocusedContainerColor = LightSurfaceVariant,
                             disabledContainerColor = LightSurfaceVariant,
+                            focusedTextColor = LightTextPrimary,
+                            unfocusedTextColor = LightTextPrimary,
+                            disabledTextColor = LightTextSecondary,
+                            focusedPlaceholderColor = LightTextSecondary,
+                            unfocusedPlaceholderColor = LightTextSecondary,
+                            disabledPlaceholderColor = LightTextSecondary,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
                             disabledIndicatorColor = Color.Transparent,
@@ -295,10 +311,10 @@ private fun AddBoxDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        MoveOnCategory.entries.forEach { category ->
-                            val selected = state.selectedCategory == category
+                        roomNameSuggestions.forEach { suggestion ->
+                            val selected = state.selectedRoomSuggestion == suggestion
                             Text(
-                                text = toTitle(category),
+                                text = suggestion,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = LightTextPrimary,
                                 modifier = Modifier
@@ -309,7 +325,7 @@ private fun AddBoxDialog(
                                         shape = RoundedCornerShape(10.dp)
                                     )
                                     .background(if (selected) Primary.copy(alpha = 0.08f) else LightSurface)
-                                    .clickable { onEvent(InventoryEvent.CategorySelected(category)) }
+                                    .clickable { onEvent(InventoryEvent.RoomSuggestionSelected(suggestion)) }
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
@@ -326,6 +342,7 @@ private fun AddBoxDialog(
                     TextField(
                         value = state.customId,
                         onValueChange = { onEvent(InventoryEvent.CustomIdChanged(it)) },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = LightTextPrimary),
                         placeholder = {
                             Text(
                                 text = "e.g., LR-001",
@@ -340,6 +357,12 @@ private fun AddBoxDialog(
                             focusedContainerColor = LightSurfaceVariant,
                             unfocusedContainerColor = LightSurfaceVariant,
                             disabledContainerColor = LightSurfaceVariant,
+                            focusedTextColor = LightTextPrimary,
+                            unfocusedTextColor = LightTextPrimary,
+                            disabledTextColor = LightTextSecondary,
+                            focusedPlaceholderColor = LightTextSecondary,
+                            unfocusedPlaceholderColor = LightTextSecondary,
+                            disabledPlaceholderColor = LightTextSecondary,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
                             disabledIndicatorColor = Color.Transparent,
