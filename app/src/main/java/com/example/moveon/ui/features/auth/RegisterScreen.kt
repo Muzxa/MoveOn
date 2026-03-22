@@ -213,7 +213,12 @@ fun RegisterTextField(
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,
             focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-            unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            focusedTextColor = Color.Black,
+            unfocusedTextColor = Color.Black,
+            disabledTextColor = Color.Black.copy(alpha = 0.5f),
+            focusedPlaceholderColor = Color.Black.copy(alpha = 0.6f),
+            unfocusedPlaceholderColor = Color.Black.copy(alpha = 0.6f)
         )
     )
 }

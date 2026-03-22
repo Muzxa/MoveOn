@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -306,7 +307,12 @@ private fun AuthField(
                 unfocusedContainerColor = LightSurfaceVariant,
                 disabledContainerColor = LightSurfaceVariant,
                 focusedIndicatorColor = LightBorder,
-                unfocusedIndicatorColor = LightBorder
+                unfocusedIndicatorColor = LightBorder,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Black.copy(alpha = 0.5f),
+                focusedPlaceholderColor = Color.Black.copy(alpha = 0.6f),
+                unfocusedPlaceholderColor = Color.Black.copy(alpha = 0.6f)
             )
         )
     }

@@ -379,7 +379,12 @@ private fun SignUpField(
                 unfocusedContainerColor = LightSurfaceVariant,
                 disabledContainerColor = LightSurfaceVariant,
                 focusedIndicatorColor = LightBorder,
-                unfocusedIndicatorColor = LightBorder
+                unfocusedIndicatorColor = LightBorder,
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Black.copy(alpha = 0.5f),
+                focusedPlaceholderColor = Color.Black.copy(alpha = 0.6f),
+                unfocusedPlaceholderColor = Color.Black.copy(alpha = 0.6f)
             )
         )
     }
