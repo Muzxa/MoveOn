@@ -8,6 +8,7 @@ import com.example.moveon.domain.model.Box
 import com.example.moveon.domain.model.Item
 import com.example.moveon.domain.repository.InventoryRepository
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -24,35 +25,233 @@ class InventoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addNewBoxToCloud(box: Box, userId: String, colorHex: String): Result<Unit> {
-        return try {
-            val payload = mapOf(
-                "box_id" to box.id,
-                "booking_id" to box.bookingId,
-                "vehicle_id" to box.vehicleId,
-                "category" to box.category,
-                "label" to box.label,
-                "volume" to box.volume,
-                "qr_image_path" to box.qrImagePath,
-                "color_hex" to colorHex,
-                "created_at" to System.currentTimeMillis()
-            )
+        val now = System.currentTimeMillis()
+        val payload = mapOf(
+            "box_uuid" to box.boxUuid,
+            "box_id" to box.boxId,
+            "user_id" to userId,
+            "booking_id" to box.bookingId,
+            "vehicle_id" to box.vehicleId,
+            "category" to box.category,
+            "label" to box.label,
+            "volume" to box.volume,
+            "packed" to box.packed,
+            "color_hex" to colorHex,
+            "created_at" to now
+        )
 
+        val failures = mutableListOf<String>()
+
+        // Primary path: user-scoped boxes subcollection.
+        runCatching {
             firestore.collection("users")
                 .document(userId)
                 .collection("boxes")
-                .document(box.id)
+                .document(box.boxUuid)
                 .set(payload)
                 .await()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "users/{uid}/boxes: ${it.message}"
         }
+
+        // Secondary path: merge into the authenticated user's root document.
+        // This matches existing successful write patterns in AuthRepositoryImpl.
+        runCatching {
+            firestore.collection("users")
+                .document(userId)
+                .set(
+                    mapOf(
+                        "inventory_updated_at" to now,
+                        "inventory_boxes" to mapOf(box.boxUuid to payload)
+                    ),
+                    SetOptions.merge()
+                )
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "users/{uid} merge inventory_boxes: ${it.message}"
+        }
+
+        // Tertiary path: top-level collection with ownership field.
+        runCatching {
+            firestore.collection("boxes")
+                .document("${userId}_${box.boxUuid}")
+                .set(payload)
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "boxes: ${it.message}"
+        }
+
+        return Result.failure(
+            IllegalStateException(
+                "Failed to save box to Firestore. Attempts: ${failures.joinToString(" | ")}"
+            )
+        )
     }
 
-    override fun getBoxesForMove(bookingId: String): Flow<List<Box>> {
-        val bookingIdInt = bookingId.toIntOrNull() ?: 0
-        return boxDao.getBoxesForBooking(bookingIdInt)
+    override suspend fun updateBoxPackedStatus(boxUuid: String, isPacked: Boolean) {
+        boxDao.updatePackedStatus(boxUuid, isPacked)
+    }
+
+    override suspend fun updateBoxPackedStatusInCloud(
+        boxUuid: String,
+        userId: String,
+        isPacked: Boolean
+    ): Result<Unit> {
+        val now = System.currentTimeMillis()
+        val failures = mutableListOf<String>()
+
+        runCatching {
+            firestore.collection("users")
+                .document(userId)
+                .collection("boxes")
+                .document(boxUuid)
+                .set(
+                    mapOf(
+                        "packed" to isPacked,
+                        "updated_at" to now
+                    ),
+                    SetOptions.merge()
+                )
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "users/{uid}/boxes packed update: ${it.message}"
+        }
+
+        runCatching {
+            firestore.collection("boxes")
+                .document("${userId}_${boxUuid}")
+                .set(
+                    mapOf(
+                        "packed" to isPacked,
+                        "updated_at" to now
+                    ),
+                    SetOptions.merge()
+                )
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "boxes packed update: ${it.message}"
+        }
+
+        return Result.failure(
+            IllegalStateException(
+                "Failed to update packed status in Firestore. Attempts: ${failures.joinToString(" | ")}"
+            )
+        )
+    }
+
+    override suspend fun updateBoxInfo(
+        boxUuid: String,
+        boxId: String,
+        category: String,
+        label: String
+    ) {
+        boxDao.updateBoxInfo(
+            boxUuid = boxUuid,
+            boxId = boxId,
+            category = category,
+            label = label
+        )
+    }
+
+    override suspend fun updateBoxInfoInCloud(
+        boxUuid: String,
+        userId: String,
+        boxId: String,
+        category: String,
+        label: String,
+        colorHex: String
+    ): Result<Unit> {
+        val now = System.currentTimeMillis()
+        val payload = mapOf(
+            "box_id" to boxId,
+            "category" to category,
+            "label" to label,
+            "color_hex" to colorHex,
+            "updated_at" to now
+        )
+        val failures = mutableListOf<String>()
+
+        runCatching {
+            firestore.collection("users")
+                .document(userId)
+                .collection("boxes")
+                .document(boxUuid)
+                .set(payload, SetOptions.merge())
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "users/{uid}/boxes info update: ${it.message}"
+        }
+
+        runCatching {
+            firestore.collection("boxes")
+                .document("${userId}_${boxUuid}")
+                .set(payload, SetOptions.merge())
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "boxes info update: ${it.message}"
+        }
+
+        return Result.failure(
+            IllegalStateException(
+                "Failed to update box info in Firestore. Attempts: ${failures.joinToString(" | ")}"
+            )
+        )
+    }
+
+    override suspend fun deleteBox(boxUuid: String) {
+        boxDao.deleteBoxByUuid(boxUuid)
+    }
+
+    override suspend fun deleteBoxFromCloud(boxUuid: String, userId: String): Result<Unit> {
+        val failures = mutableListOf<String>()
+
+        runCatching {
+            firestore.collection("users")
+                .document(userId)
+                .collection("boxes")
+                .document(boxUuid)
+                .delete()
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "users/{uid}/boxes delete: ${it.message}"
+        }
+
+        runCatching {
+            firestore.collection("boxes")
+                .document("${userId}_${boxUuid}")
+                .delete()
+                .await()
+        }.onSuccess {
+            return Result.success(Unit)
+        }.onFailure {
+            failures += "boxes delete: ${it.message}"
+        }
+
+        return Result.failure(
+            IllegalStateException(
+                "Failed to delete box from Firestore. Attempts: ${failures.joinToString(" | ")}"
+            )
+        )
+    }
+
+    override fun getBoxesForMove(bookingId: Int): Flow<List<Box>> {
+        return boxDao.getBoxesForBooking(bookingId)
             .map { entities -> entities.map { it.toDomainModel() } }
     }
 

@@ -22,6 +22,28 @@ interface BoxDao{
     @Query("SELECT COUNT(*) FROM boxes")
     suspend fun getTotalBoxesCount(): Int
 
+    @Query("UPDATE boxes SET packed = :isPacked WHERE box_uuid = :boxUuid")
+    suspend fun updatePackedStatus(boxUuid: String, isPacked: Boolean)
+
+    @Query(
+        """
+        UPDATE boxes
+        SET box_id = :boxId,
+            category = :category,
+            label = :label
+        WHERE box_uuid = :boxUuid
+        """
+    )
+    suspend fun updateBoxInfo(
+        boxUuid: String,
+        boxId: String,
+        category: String,
+        label: String
+    )
+
+    @Query("DELETE FROM boxes WHERE box_uuid = :boxUuid")
+    suspend fun deleteBoxByUuid(boxUuid: String)
+
     @Delete
     suspend fun deleteBox(box: BoxEntity)
 }

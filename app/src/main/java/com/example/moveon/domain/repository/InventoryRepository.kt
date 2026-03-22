@@ -7,7 +7,29 @@ import kotlinx.coroutines.flow.Flow
 interface InventoryRepository {
     suspend fun addNewBox(box: Box)
     suspend fun addNewBoxToCloud(box: Box, userId: String, colorHex: String): Result<Unit>
-    fun getBoxesForMove(bookingId: String): Flow<List<Box>>
+    suspend fun updateBoxPackedStatus(boxUuid: String, isPacked: Boolean)
+    suspend fun updateBoxPackedStatusInCloud(
+        boxUuid: String,
+        userId: String,
+        isPacked: Boolean
+    ): Result<Unit>
+    suspend fun updateBoxInfo(
+        boxUuid: String,
+        boxId: String,
+        category: String,
+        label: String
+    )
+    suspend fun updateBoxInfoInCloud(
+        boxUuid: String,
+        userId: String,
+        boxId: String,
+        category: String,
+        label: String,
+        colorHex: String
+    ): Result<Unit>
+    suspend fun deleteBox(boxUuid: String)
+    suspend fun deleteBoxFromCloud(boxUuid: String, userId: String): Result<Unit>
+    fun getBoxesForMove(bookingId: Int): Flow<List<Box>>
     fun getItemsInBox(boxId: String): Flow<List<Item>>
     suspend fun addItemToInventory(item: Item)
     suspend fun getTotalBoxesCount(): Int

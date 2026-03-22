@@ -1,12 +1,13 @@
 package com.example.moveon.domain.model
 
 data class Box(
-    val id: String,
-    val bookingId: String,
-    val vehicleId: String? = null,  
+    val boxUuid: String,
+    val boxId: String,
+    val bookingId: Int,
+    val vehicleId: Int? = null,
     val category: String,
     val label: String,
-    val volume: Double,  
-    val qrImagePath: String,
+    val volume: Double,
+    val packed: Boolean,
     val items: List<Item> = emptyList()
 )

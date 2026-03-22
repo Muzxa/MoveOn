@@ -13,7 +13,7 @@ import com.example.moveon.data.local.entities.UserSessionEntity
 
 @Database(
     entities = [BoxEntity::class, ItemEntity::class, UserSessionEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class MoveOnDatabase : RoomDatabase() {
@@ -42,6 +42,61 @@ abstract class MoveOnDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("PRAGMA foreign_keys=OFF")
+
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `boxes_new` (
+                        `box_uuid` TEXT NOT NULL,
+                        `box_id` TEXT NOT NULL,
+                        `booking_id` INTEGER NOT NULL,
+                        `vehicle_id` INTEGER,
+                        `category` TEXT NOT NULL,
+                        `label` TEXT NOT NULL,
+                        `volume` REAL NOT NULL,
+                        `packed` INTEGER NOT NULL,
+                        PRIMARY KEY(`box_uuid`)
+                    )
+                    """.trimIndent()
+                )
+
+                database.execSQL(
+                    """
+                    INSERT INTO `boxes_new` (
+                        `box_uuid`,
+                        `box_id`,
+                        `booking_id`,
+                        `vehicle_id`,
+                        `category`,
+                        `label`,
+                        `volume`,
+                        `packed`
+                    )
+                    SELECT
+                        `box_id` AS `box_uuid`,
+                        `box_id`,
+                        `booking_id`,
+                        `vehicle_id`,
+                        `category`,
+                        `label`,
+                        `volume`,
+                        0 AS `packed`
+                    FROM `boxes`
+                    """.trimIndent()
+                )
+
+                database.execSQL("DROP TABLE `boxes`")
+                database.execSQL("ALTER TABLE `boxes_new` RENAME TO `boxes`")
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_boxes_box_id` ON `boxes` (`box_id`)"
+                )
+
+                database.execSQL("PRAGMA foreign_keys=ON")
             }
         }
     }

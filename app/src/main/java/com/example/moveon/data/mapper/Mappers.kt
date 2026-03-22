@@ -187,24 +187,49 @@ fun BookingVehicle.toDto(): BookingVehicleDto = BookingVehicleDto(
 
 // Box Mappings (Local Storage)
 fun BoxEntity.toDomainModel(): Box = Box(
-    id = this.box_id,
-    bookingId = this.booking_id.toString(),
-    vehicleId = this.vehicle_id?.toString(),
+    boxUuid = this.box_uuid,
+    boxId = this.box_id,
+    bookingId = this.booking_id,
+    vehicleId = this.vehicle_id,
     category = this.category,
     label = this.label,
     volume = this.volume,
-    qrImagePath = this.qr_image_path ?: "",
+    packed = this.packed,
     items = emptyList() // Populated separately
 )
 
 fun Box.toEntity(): BoxEntity = BoxEntity(
-    box_id = this.id,
-    booking_id = this.bookingId.toIntOrNull() ?: 0,
-    vehicle_id = this.vehicleId?.toIntOrNull(),
+    box_uuid = this.boxUuid,
+    box_id = this.boxId,
+    booking_id = this.bookingId,
+    vehicle_id = this.vehicleId,
     category = this.category,
     label = this.label,
     volume = this.volume,
-    qr_image_path = this.qrImagePath
+    packed = this.packed
+)
+
+fun BoxDto.toDomainModel(): Box = Box(
+    boxUuid = this.box_uuid,
+    boxId = this.box_id,
+    bookingId = this.booking_id,
+    vehicleId = this.vehicle_id,
+    category = this.category,
+    label = this.label,
+    volume = this.volume,
+    packed = this.packed,
+    items = emptyList()
+)
+
+fun Box.toDto(): BoxDto = BoxDto(
+    box_uuid = this.boxUuid,
+    box_id = this.boxId,
+    booking_id = this.bookingId,
+    vehicle_id = this.vehicleId,
+    category = this.category,
+    label = this.label,
+    volume = this.volume,
+    packed = this.packed
 )
 
 // Item Mappings (Local Storage)
