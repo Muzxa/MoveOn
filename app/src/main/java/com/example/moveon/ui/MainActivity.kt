@@ -49,6 +49,9 @@ import com.example.moveon.ui.features.profile.ProfileScreen
 import com.example.moveon.ui.features.splash.SplashScreen
 import com.example.moveon.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -85,7 +88,13 @@ class MainActivity : ComponentActivity() {
 
                         SplashScreen(
                             onResolveSession = {
-                                val role = authViewModel.currentUser.value?.role
+                                val role = withTimeoutOrNull(4000L) {
+                                    authViewModel.currentUser
+                                        .filterNotNull()
+                                        .first()
+                                        .role
+                                }
+
                                 val targetRoute = when {
                                     role == UserRole.PROVIDER -> Screen.ProviderDashboard.route
                                     authViewModel.isUserLoggedIn() -> Screen.Home.route
@@ -295,11 +304,9 @@ class MainActivity : ComponentActivity() {
 
                     composable(Screen.ProviderDashboard.route) {
                         ProviderDashboardScreen(
-                            onGoHome = {
-                                navController.navigate(Screen.SignUp.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        inclusive = true
-                                    }
+                            onOpenProfile = {
+                                navController.navigate(Screen.Profile.route) {
+                                    launchSingleTop = true
                                 }
                             }
                         )
@@ -337,9 +344,12 @@ class MainActivity : ComponentActivity() {
                             onTabSelected = onTabSelected,
                             onNavigateToLogin = {
                                 navController.navigate(Screen.Login.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
+                                    popUpTo(Screen.Splash.route) {
                                         inclusive = true
+                                        saveState = false
                                     }
+                                    launchSingleTop = true
+                                    restoreState = false
                                 }
                             }
                         )

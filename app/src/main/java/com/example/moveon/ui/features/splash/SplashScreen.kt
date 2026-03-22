@@ -38,7 +38,7 @@ import com.example.moveon.ui.theme.Primary
 import kotlinx.coroutines.delay
 
 @Composable
-fun SplashScreen(onResolveSession: () -> Unit) {
+fun SplashScreen(onResolveSession: suspend () -> Unit) {
     LaunchedEffect(Unit) {
         delay(2000L)
         onResolveSession()
