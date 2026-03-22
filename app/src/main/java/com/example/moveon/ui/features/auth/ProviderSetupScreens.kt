@@ -5,17 +5,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Business
@@ -41,6 +43,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -72,7 +76,7 @@ fun ProviderSetupStepOneScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("Professional Details", fontWeight = FontWeight.Bold, fontSize = 32.sp)
+                Text("Professional Details", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Tell us about your transport business", color = LightTextSecondary)
 
                 ProviderSectionCard {
@@ -173,7 +177,7 @@ fun ProviderSetupStepTwoScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("Vehicle Information", fontWeight = FontWeight.Bold, fontSize = 32.sp)
+                Text("Vehicle Information", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Add your vehicle details.", color = LightTextSecondary)
 
                 ProviderSectionCard {
@@ -293,6 +297,24 @@ fun ProviderSetupStepThreeScreen(
     isLoading: Boolean,
     onRegister: () -> Unit
 ) {
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            flowViewModel.cnicUploaded = true
+            flowViewModel.cnicUploadLabel = "Photo captured"
+        }
+    }
+
+    val uploadLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            flowViewModel.cnicUploaded = true
+            flowViewModel.cnicUploadLabel = "File uploaded"
+        }
+    }
+
     Surface(modifier = Modifier.fillMaxSize(), color = LightBackground) {
         Column(
             modifier = Modifier
@@ -305,7 +327,7 @@ fun ProviderSetupStepThreeScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("Verify Your Credentials", fontWeight = FontWeight.Bold, fontSize = 32.sp)
+                Text("Verify Your Credentials", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Upload required documents to complete your profile", color = LightTextSecondary)
 
                 ProviderSectionCard {
@@ -328,7 +350,7 @@ fun ProviderSetupStepThreeScreen(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            onClick = { flowViewModel.cnicUploaded = true },
+                            onClick = { cameraLauncher.launch(null) },
                             modifier = Modifier.weight(1f),
                             border = BorderStroke(1.dp, LightBorder)
                         ) {
@@ -336,11 +358,30 @@ fun ProviderSetupStepThreeScreen(
                             Text(" Take Photo")
                         }
                         Button(
-                            onClick = { flowViewModel.cnicUploaded = true },
+                            onClick = { uploadLauncher.launch("image/*") },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Text("Upload File")
+                        }
+                    }
+
+                    if (flowViewModel.cnicUploaded) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = flowViewModel.cnicUploadLabel,
+                                fontSize = 12.sp,
+                                color = Color(0xFF2E7D32)
+                            )
                         }
                     }
                 }
@@ -384,7 +425,10 @@ fun ProviderSetupStepThreeScreen(
                     }
                 }
 
-                TextButton(onClick = { flowViewModel.cnicUploaded = false }) {
+                TextButton(onClick = {
+                    flowViewModel.cnicUploaded = false
+                    flowViewModel.cnicUploadLabel = ""
+                }) {
                     Text("Reset uploads", color = LightTextSecondary)
                 }
             }
@@ -402,8 +446,9 @@ private fun ProviderStepHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(Primary)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
@@ -415,8 +460,8 @@ private fun ProviderStepHeader(
                 Icon(Icons.Outlined.LocalShipping, contentDescription = null, tint = Color.White)
             }
             Column {
-                Text(title, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
+                Text(title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = Color.White.copy(alpha = 0.88f), fontSize = 12.sp)
             }
         }
 

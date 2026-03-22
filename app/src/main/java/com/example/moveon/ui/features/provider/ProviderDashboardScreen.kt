@@ -35,7 +35,7 @@ fun ProviderDashboardScreen(
             modifier = Modifier.padding(top = 10.dp, bottom = 20.dp)
         )
         Button(onClick = onGoHome) {
-            Text("Go to Home")
+            Text("Back to Sign Up")
         }
     }
 }
