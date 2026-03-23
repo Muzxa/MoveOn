@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -289,6 +290,8 @@ private fun AddItemDialog(
     var quantityText by remember { mutableStateOf("1") }
     var description by remember { mutableStateOf("") }
     var isFragile by remember { mutableStateOf(false) }
+    val modalTextColor = Color.Black
+    val modalHintColor = Color(0xFF424242)
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -309,7 +312,7 @@ private fun AddItemDialog(
                     Text(
                         text = "Add Item",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = LightTextPrimary
+                        color = modalTextColor
                     )
                     IconButton(
                         onClick = onDismiss,
@@ -360,27 +363,50 @@ private fun AddItemDialog(
                             OutlinedTextField(
                                 value = name,
                                 onValueChange = { name = it },
-                                label = { Text("Item Name") },
+                                label = { Text("Item Name", color = modalTextColor) },
                                 modifier = Modifier.weight(3f),
-                                singleLine = true
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = modalTextColor,
+                                    unfocusedTextColor = modalTextColor,
+                                    focusedLabelColor = modalTextColor,
+                                    unfocusedLabelColor = modalTextColor,
+                                    cursorColor = modalTextColor
+                                )
                             )
                             OutlinedTextField(
                                 value = quantityText,
                                 onValueChange = { quantityText = it.filter(Char::isDigit) },
-                                label = { Text("Quantity") },
+                                label = { Text("Quantity", color = modalTextColor) },
                                 modifier = Modifier.weight(2f),
-                                singleLine = true
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = modalTextColor,
+                                    unfocusedTextColor = modalTextColor,
+                                    focusedLabelColor = modalTextColor,
+                                    unfocusedLabelColor = modalTextColor,
+                                    cursorColor = modalTextColor
+                                )
                             )
                         }
 
                         OutlinedTextField(
                             value = description,
                             onValueChange = { description = it },
-                            label = { Text("Description") },
-                            placeholder = { Text("Enter item description") },
+                            label = { Text("Description", color = modalTextColor) },
+                            placeholder = { Text("Enter item description", color = modalHintColor) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(100.dp)
+                                .height(100.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = modalTextColor,
+                                unfocusedTextColor = modalTextColor,
+                                focusedLabelColor = modalTextColor,
+                                unfocusedLabelColor = modalTextColor,
+                                focusedPlaceholderColor = modalHintColor,
+                                unfocusedPlaceholderColor = modalHintColor,
+                                cursorColor = modalTextColor
+                            )
                         )
 
                         Row(
@@ -395,13 +421,13 @@ private fun AddItemDialog(
                                 Text(
                                     text = "Fragile Item",
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = LightTextPrimary,
+                                    color = modalTextColor,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "Requires special handling",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = LightTextSecondary
+                                    color = modalHintColor
                                 )
                             }
                             Switch(
