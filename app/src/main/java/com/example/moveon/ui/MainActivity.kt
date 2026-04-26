@@ -42,6 +42,7 @@ import com.example.moveon.ui.features.auth.ProviderSetupStepThreeScreen
 import com.example.moveon.ui.features.auth.ProviderSetupStepTwoScreen
 import com.example.moveon.ui.features.auth.RoleChooseScreen
 import com.example.moveon.ui.features.auth.SignUpScreen
+import com.example.moveon.ui.features.book.BookScreen
 import com.example.moveon.ui.features.home.HomeScreen
 import com.example.moveon.ui.features.inventory.AddItemCameraScreen
 import com.example.moveon.ui.features.inventory.BoxItemsScreen
@@ -331,11 +332,7 @@ class MainActivity : ComponentActivity() {
 
                     // 7. Book Route (placeholder for future implementation)
                     composable(Screen.Book.route) {
-                        BottomTabPlaceholderScreen(
-                            title = "Book",
-                            selectedTab = DashboardTab.Book,
-                            onTabSelected = onTabSelected
-                        )
+                        BookScreen(onTabSelected = onTabSelected)
                     }
 
                     // 8. Inventory Route
