@@ -13,6 +13,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -20,6 +25,9 @@ class BookViewModel @Inject constructor(
     authRepository: AuthRepository,
     private val logisticsRepository: LogisticsRepository
 ) : ViewModel() {
+
+    private val dateFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.US)
+    private val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
 
     val currentUser: StateFlow<User?> = authRepository.currentUser
         .stateIn(
@@ -83,12 +91,41 @@ class BookViewModel @Inject constructor(
         _state.value = _state.value.copy(distanceKmText = value)
     }
 
-    fun onScheduledDateChanged(value: String) {
-        _state.value = _state.value.copy(scheduledDateText = value)
+    fun onDatePicked(dateMillis: Long) {
+        val localDate = Instant.ofEpochMilli(dateMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+
+        _state.value = _state.value.copy(
+            selectedDateMillis = dateMillis,
+            scheduledDateText = localDate.format(dateFormatter)
+        )
     }
 
-    fun onScheduledTimeChanged(value: String) {
-        _state.value = _state.value.copy(scheduledTimeText = value)
+    fun onTimePicked(hour: Int, minute: Int) {
+        val localTime = LocalTime.of(hour, minute)
+        _state.value = _state.value.copy(
+            selectedHour = hour,
+            selectedMinute = minute,
+            scheduledTimeText = localTime.format(timeFormatter)
+        )
+    }
+
+    fun scheduledDateTimeMillis(): Long? {
+        val stateSnapshot = _state.value
+        val dateMillis = stateSnapshot.selectedDateMillis ?: return null
+        val hour = stateSnapshot.selectedHour ?: return null
+        val minute = stateSnapshot.selectedMinute ?: return null
+
+        val selectedDate = Instant.ofEpochMilli(dateMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+
+        return selectedDate
+            .atTime(hour, minute)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
     }
 
     fun onStepAdvance() {
@@ -110,7 +147,9 @@ class BookViewModel @Inject constructor(
             3 -> {
                 _state.value.pickupAddress.isNotBlank() &&
                     _state.value.dropOffAddress.isNotBlank() &&
-                    _state.value.distanceKmText.isNotBlank()
+                    _state.value.distanceKmText.isNotBlank() &&
+                    _state.value.scheduledDateText.isNotBlank() &&
+                    _state.value.scheduledTimeText.isNotBlank()
             }
 
             else -> true
@@ -129,6 +168,9 @@ data class BookUiState(
     val pickupAddress: String = "",
     val dropOffAddress: String = "",
     val distanceKmText: String = "",
+    val selectedDateMillis: Long? = null,
+    val selectedHour: Int? = null,
+    val selectedMinute: Int? = null,
     val scheduledDateText: String = "",
     val scheduledTimeText: String = "",
     val providers: List<Provider> = emptyList(),

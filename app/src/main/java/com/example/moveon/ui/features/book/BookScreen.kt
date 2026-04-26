@@ -1,5 +1,7 @@
 package com.example.moveon.ui.features.book
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +21,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +35,7 @@ import com.example.moveon.ui.theme.LightSurface
 import com.example.moveon.ui.theme.LightTextPrimary
 import com.example.moveon.ui.theme.LightTextSecondary
 import java.text.DecimalFormat
+import java.util.Calendar
 import java.util.Locale
 
 @Composable
@@ -39,11 +43,48 @@ fun BookScreen(
     onTabSelected: (DashboardTab) -> Unit,
     viewModel: BookViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val state = viewModel.state.value
     val selectedService = moveOnServiceOptions.firstOrNull { it.id == state.selectedServiceId }
     val selectedProvider = state.providers.firstOrNull { it.id == state.selectedProviderId }
     val providerCards = state.providers.map { provider ->
         provider.toProviderCardUi()
+    }
+
+    val openDatePicker: () -> Unit = {
+        val now = Calendar.getInstance()
+        val initialDate = Calendar.getInstance().apply {
+            timeInMillis = state.selectedDateMillis ?: now.timeInMillis
+        }
+
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val picked = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth, 0, 0, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                viewModel.onDatePicked(picked.timeInMillis)
+            },
+            initialDate.get(Calendar.YEAR),
+            initialDate.get(Calendar.MONTH),
+            initialDate.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            datePicker.minDate = now.timeInMillis
+        }.show()
+    }
+
+    val openTimePicker: () -> Unit = {
+        val now = Calendar.getInstance()
+        TimePickerDialog(
+            context,
+            { _, hourOfDay, minute ->
+                viewModel.onTimePicked(hourOfDay, minute)
+            },
+            state.selectedHour ?: now.get(Calendar.HOUR_OF_DAY),
+            state.selectedMinute ?: now.get(Calendar.MINUTE),
+            false
+        ).show()
     }
 
     Scaffold(
@@ -167,19 +208,25 @@ fun BookScreen(
 
                         OutlinedTextField(
                             value = state.scheduledDateText,
-                            onValueChange = viewModel::onScheduledDateChanged,
+                            onValueChange = {},
                             label = { Text("Move Date") },
-                            placeholder = { Text("YYYY-MM-DD") },
-                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Tap to pick date") },
+                            readOnly = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = openDatePicker),
                             singleLine = true
                         )
 
                         OutlinedTextField(
                             value = state.scheduledTimeText,
-                            onValueChange = viewModel::onScheduledTimeChanged,
+                            onValueChange = {},
                             label = { Text("Move Time") },
-                            placeholder = { Text("HH:MM") },
-                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Tap to pick time") },
+                            readOnly = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = openTimePicker),
                             singleLine = true
                         )
                     }
