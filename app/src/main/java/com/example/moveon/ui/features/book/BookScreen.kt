@@ -1,6 +1,7 @@
 package com.example.moveon.ui.features.book
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -18,15 +19,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.moveon.domain.model.Provider
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
 import com.example.moveon.ui.theme.LightBackground
@@ -34,32 +31,19 @@ import com.example.moveon.ui.theme.LightBorder
 import com.example.moveon.ui.theme.LightSurface
 import com.example.moveon.ui.theme.LightTextPrimary
 import com.example.moveon.ui.theme.LightTextSecondary
+import java.text.DecimalFormat
+import java.util.Locale
 
 @Composable
 fun BookScreen(
-    onTabSelected: (DashboardTab) -> Unit
+    onTabSelected: (DashboardTab) -> Unit,
+    viewModel: BookViewModel = hiltViewModel()
 ) {
-    var currentStep by rememberSaveable { mutableIntStateOf(1) }
-    var selectedServiceId by rememberSaveable { mutableStateOf("") }
-    var selectedProviderId by rememberSaveable { mutableStateOf("") }
-    var pickupAddress by rememberSaveable { mutableStateOf("") }
-    var dropOffAddress by rememberSaveable { mutableStateOf("") }
-    var distanceKmText by rememberSaveable { mutableStateOf("") }
-    var scheduledDateText by rememberSaveable { mutableStateOf("") }
-    var scheduledTimeText by rememberSaveable { mutableStateOf("") }
-
-    val selectedService = remember(selectedServiceId) {
-        moveOnServiceOptions.firstOrNull { it.id == selectedServiceId }
-    }
-    val selectedProvider = remember(selectedProviderId) {
-        moveOnProviderOptions.firstOrNull { it.id == selectedProviderId }
-    }
-
-    val canAdvance = when (currentStep) {
-        1 -> selectedServiceId.isNotBlank()
-        2 -> selectedProviderId.isNotBlank()
-        3 -> pickupAddress.isNotBlank() && dropOffAddress.isNotBlank() && distanceKmText.isNotBlank()
-        else -> true
+    val state = viewModel.state.value
+    val selectedService = moveOnServiceOptions.firstOrNull { it.id == state.selectedServiceId }
+    val selectedProvider = state.providers.firstOrNull { it.id == state.selectedProviderId }
+    val providerCards = state.providers.map { provider ->
+        provider.toProviderCardUi()
     }
 
     Scaffold(
@@ -85,22 +69,21 @@ fun BookScreen(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                when (currentStep) {
+                when (state.currentStep) {
                     1 -> {
                         BookStepHeader(
                             title = "Vehicle Selection",
                             subtitle = "Choose a move size and vehicle category.",
                             step = 1,
-                            totalSteps = 4
+                            totalSteps = BookViewModel.TOTAL_STEPS
                         )
 
                         moveOnServiceOptions.forEach { option ->
                             BookServiceListCard(
                                 service = option,
-                                selected = selectedServiceId == option.id,
+                                selected = state.selectedServiceId == option.id,
                                 onSelect = {
-                                    selectedServiceId = option.id
-                                    selectedProviderId = ""
+                                    viewModel.onServiceSelected(option.id)
                                 }
                             )
                         }
@@ -111,14 +94,41 @@ fun BookScreen(
                             title = "Pick Provider",
                             subtitle = "Select a verified provider for your selected vehicle.",
                             step = 2,
-                            totalSteps = 4
+                            totalSteps = BookViewModel.TOTAL_STEPS
                         )
 
-                        moveOnProviderOptions.forEach { option ->
+                        if (state.isLoadingProviders) {
+                            Text(
+                                text = "Loading available providers...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LightTextSecondary
+                            )
+                        }
+
+                        if (state.providersError != null) {
+                            Text(
+                                text = state.providersError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LightTextSecondary,
+                                modifier = Modifier
+                                    .clickable { viewModel.refreshProviders() }
+                                    .padding(vertical = 4.dp)
+                            )
+                        }
+
+                        providerCards.forEach { option ->
                             BookProviderListCard(
                                 provider = option,
-                                selected = selectedProviderId == option.id,
-                                onSelect = { selectedProviderId = option.id }
+                                selected = state.selectedProviderId == option.id,
+                                onSelect = { viewModel.onProviderSelected(option.id) }
+                            )
+                        }
+
+                        if (!state.isLoadingProviders && providerCards.isEmpty() && state.providersError == null) {
+                            Text(
+                                text = "No verified providers are available right now.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LightTextSecondary
                             )
                         }
                     }
@@ -128,36 +138,36 @@ fun BookScreen(
                             title = "Booking Details",
                             subtitle = "Enter route and schedule details for your move.",
                             step = 3,
-                            totalSteps = 4
+                            totalSteps = BookViewModel.TOTAL_STEPS
                         )
 
                         OutlinedTextField(
-                            value = pickupAddress,
-                            onValueChange = { pickupAddress = it },
+                            value = state.pickupAddress,
+                            onValueChange = viewModel::onPickupAddressChanged,
                             label = { Text("Pickup Address") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
 
                         OutlinedTextField(
-                            value = dropOffAddress,
-                            onValueChange = { dropOffAddress = it },
+                            value = state.dropOffAddress,
+                            onValueChange = viewModel::onDropOffAddressChanged,
                             label = { Text("Drop-off Address") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
 
                         OutlinedTextField(
-                            value = distanceKmText,
-                            onValueChange = { distanceKmText = it },
+                            value = state.distanceKmText,
+                            onValueChange = viewModel::onDistanceKmChanged,
                             label = { Text("Distance (km)") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
 
                         OutlinedTextField(
-                            value = scheduledDateText,
-                            onValueChange = { scheduledDateText = it },
+                            value = state.scheduledDateText,
+                            onValueChange = viewModel::onScheduledDateChanged,
                             label = { Text("Move Date") },
                             placeholder = { Text("YYYY-MM-DD") },
                             modifier = Modifier.fillMaxWidth(),
@@ -165,8 +175,8 @@ fun BookScreen(
                         )
 
                         OutlinedTextField(
-                            value = scheduledTimeText,
-                            onValueChange = { scheduledTimeText = it },
+                            value = state.scheduledTimeText,
+                            onValueChange = viewModel::onScheduledTimeChanged,
                             label = { Text("Move Time") },
                             placeholder = { Text("HH:MM") },
                             modifier = Modifier.fillMaxWidth(),
@@ -179,7 +189,7 @@ fun BookScreen(
                             title = "Trip Details",
                             subtitle = "Review your booking details before confirmation.",
                             step = 4,
-                            totalSteps = 4
+                            totalSteps = BookViewModel.TOTAL_STEPS
                         )
 
                         Card(
@@ -201,29 +211,37 @@ fun BookScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = selectedProvider?.name ?: "Provider pending",
+                                    text = selectedProvider?.establishmentName?.ifBlank { "Provider pending" } ?: "Provider pending",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = LightTextSecondary
                                 )
                                 Text(
-                                    text = "From: ${pickupAddress.ifBlank { "-" }}",
+                                    text = "From: ${state.pickupAddress.ifBlank { "-" }}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = LightTextSecondary
                                 )
                                 Text(
-                                    text = "To: ${dropOffAddress.ifBlank { "-" }}",
+                                    text = "To: ${state.dropOffAddress.ifBlank { "-" }}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = LightTextSecondary
                                 )
                                 Text(
-                                    text = "Distance: ${distanceKmText.ifBlank { "-" }} km",
+                                    text = "Distance: ${state.distanceKmText.ifBlank { "-" }} km",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = LightTextSecondary
                                 )
                                 Text(
-                                    text = "Schedule: ${scheduledDateText.ifBlank { "-" }} ${scheduledTimeText.ifBlank { "" }}",
+                                    text = "Schedule: ${state.scheduledDateText.ifBlank { "-" }} ${state.scheduledTimeText.ifBlank { "" }}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = LightTextSecondary
+                                )
+                                Text(
+                                    text = estimateFareLabel(
+                                        provider = selectedProvider,
+                                        distanceText = state.distanceKmText
+                                    ),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = LightTextPrimary
                                 )
 
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -239,23 +257,57 @@ fun BookScreen(
             }
 
             BookActionFooter(
-                primaryLabel = if (currentStep < 4) "Continue" else "Continue to Confirm",
-                onPrimaryClick = {
-                    if (currentStep < 4) {
-                        currentStep += 1
-                    }
+                primaryLabel = if (state.currentStep < BookViewModel.TOTAL_STEPS) {
+                    "Continue"
+                } else {
+                    "Continue to Confirm"
                 },
-                secondaryLabel = if (currentStep > 1) "Back" else null,
-                onSecondaryClick = if (currentStep > 1) {
-                    { currentStep -= 1 }
+                onPrimaryClick = {
+                    viewModel.onStepAdvance()
+                },
+                secondaryLabel = if (state.currentStep > 1) "Back" else null,
+                onSecondaryClick = if (state.currentStep > 1) {
+                    { viewModel.onStepBack() }
                 } else {
                     null
                 },
-                enabled = canAdvance,
+                enabled = viewModel.canAdvance(),
                 modifier = Modifier.fillMaxWidth()
             )
         }
     }
+}
+
+private fun Provider.toProviderCardUi(): BookProviderCardUi {
+    val prettyName = establishmentName.ifBlank { "Provider ${id.takeLast(4)}" }
+    val ratingNumber = if (rating <= 0.0) "New" else String.format(Locale.US, "%.1f", rating)
+
+    return BookProviderCardUi(
+        id = id,
+        name = prettyName,
+        ratingLabel = "$ratingNumber rating",
+        fleetLabel = "Rate/km ${formatPkr(ratePerKm)}",
+        priceLabel = "Base ${formatPkr(baseRate)}",
+        etaLabel = if (isVerified) "Verified" else "Pending verification"
+    )
+}
+
+private fun estimateFareLabel(
+    provider: Provider?,
+    distanceText: String
+): String {
+    val parsedDistance = distanceText.toDoubleOrNull()
+    if (provider == null || parsedDistance == null) {
+        return "Estimated fare appears after provider and distance selection."
+    }
+
+    val estimatedFare = provider.baseRate + (provider.ratePerKm * parsedDistance)
+    return "Estimated Fare: ${formatPkr(estimatedFare)}"
+}
+
+private fun formatPkr(value: Double): String {
+    val formatter = DecimalFormat("#,###")
+    return "PKR ${formatter.format(value)}"
 }
 
 private val moveOnServiceOptions = listOf(
@@ -282,32 +334,5 @@ private val moveOnServiceOptions = listOf(
         capacityLabel = "Up to 2,500 kg",
         etaLabel = "ETA 35-45 min",
         baseRateLabel = "From PKR 7,500"
-    )
-)
-
-private val moveOnProviderOptions = listOf(
-    BookProviderCardUi(
-        id = "provider_a",
-        name = "FastMove Logistics",
-        ratingLabel = "4.8 (310 trips)",
-        fleetLabel = "12 vehicles",
-        priceLabel = "Base PKR 3,200",
-        etaLabel = "Available now"
-    ),
-    BookProviderCardUi(
-        id = "provider_b",
-        name = "CityRelocate Co.",
-        ratingLabel = "4.6 (280 trips)",
-        fleetLabel = "9 vehicles",
-        priceLabel = "Base PKR 2,900",
-        etaLabel = "Available in 15 min"
-    ),
-    BookProviderCardUi(
-        id = "provider_c",
-        name = "MoveOn Partners",
-        ratingLabel = "4.9 (420 trips)",
-        fleetLabel = "15 vehicles",
-        priceLabel = "Base PKR 3,400",
-        etaLabel = "Available now"
     )
 )

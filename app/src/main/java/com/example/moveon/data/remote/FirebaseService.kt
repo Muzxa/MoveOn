@@ -35,6 +35,19 @@ class FirebaseService @Inject constructor(
             .await()
     }
 
+    suspend fun createBooking(booking: BookingDto): BookingDto {
+        val bookingsCollection = firestore.collection("bookings")
+        val documentRef = if (booking.booking_id.isBlank()) {
+            bookingsCollection.document()
+        } else {
+            bookingsCollection.document(booking.booking_id)
+        }
+
+        val bookingToPersist = booking.copy(booking_id = documentRef.id)
+        documentRef.set(bookingToPersist).await()
+        return bookingToPersist
+    }
+
     suspend fun getBookingsForUser(userId: String): List<BookingDto> {
         return firestore.collection("bookings")
             .whereEqualTo("user_id", userId)

@@ -13,6 +13,7 @@ interface LogisticsRepository {
     suspend fun getVehiclesForProvider(providerId: String): Result<List<Vehicle>>
     suspend fun getDriversForProvider(providerId: String): Result<List<Driver>>
     suspend fun getBookingsForProvider(providerId: String): Result<List<Booking>>
+    suspend fun createBooking(booking: Booking): Result<Booking>
     suspend fun confirmBooking(booking: Booking)
     suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean
     suspend fun getBookingsForUser(userId: String): Result<List<Booking>>
