@@ -31,6 +31,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
+import com.example.moveon.ui.theme.Error
 import com.example.moveon.ui.theme.LightBackground
 import com.example.moveon.ui.theme.LightBorder
 import com.example.moveon.ui.theme.LightSurface
@@ -329,12 +330,20 @@ fun BookScreen(
                                     Text(
                                         text = state.bookingError,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = LightTextSecondary
+                                        color = Error
                                     )
                                 }
                             }
                         }
                     }
+                }
+
+                if (state.formError != null) {
+                    Text(
+                        text = state.formError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Error
+                    )
                 }
             }
 

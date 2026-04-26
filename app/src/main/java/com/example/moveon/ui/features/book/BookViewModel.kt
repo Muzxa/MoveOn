@@ -74,24 +74,43 @@ class BookViewModel @Inject constructor(
     fun onServiceSelected(serviceId: String) {
         _state.value = _state.value.copy(
             selectedServiceId = serviceId,
-            selectedProviderId = ""
+            selectedProviderId = "",
+            formError = null,
+            bookingError = null
         )
     }
 
     fun onProviderSelected(providerId: String) {
-        _state.value = _state.value.copy(selectedProviderId = providerId)
+        _state.value = _state.value.copy(
+            selectedProviderId = providerId,
+            formError = null,
+            bookingError = null
+        )
     }
 
     fun onPickupAddressChanged(value: String) {
-        _state.value = _state.value.copy(pickupAddress = value)
+        _state.value = _state.value.copy(
+            pickupAddress = value,
+            formError = null,
+            bookingError = null
+        )
     }
 
     fun onDropOffAddressChanged(value: String) {
-        _state.value = _state.value.copy(dropOffAddress = value)
+        _state.value = _state.value.copy(
+            dropOffAddress = value,
+            formError = null,
+            bookingError = null
+        )
     }
 
     fun onDistanceKmChanged(value: String) {
-        _state.value = _state.value.copy(distanceKmText = value)
+        val normalized = normalizeDistanceInput(value)
+        _state.value = _state.value.copy(
+            distanceKmText = normalized,
+            formError = null,
+            bookingError = null
+        )
     }
 
     fun onDatePicked(dateMillis: Long) {
@@ -101,7 +120,9 @@ class BookViewModel @Inject constructor(
 
         _state.value = _state.value.copy(
             selectedDateMillis = dateMillis,
-            scheduledDateText = localDate.format(dateFormatter)
+            scheduledDateText = localDate.format(dateFormatter),
+            formError = null,
+            bookingError = null
         )
     }
 
@@ -110,7 +131,9 @@ class BookViewModel @Inject constructor(
         _state.value = _state.value.copy(
             selectedHour = hour,
             selectedMinute = minute,
-            scheduledTimeText = localTime.format(timeFormatter)
+            scheduledTimeText = localTime.format(timeFormatter),
+            formError = null,
+            bookingError = null
         )
     }
 
@@ -132,9 +155,19 @@ class BookViewModel @Inject constructor(
     }
 
     fun onStepAdvance() {
-        if (_state.value.currentStep < TOTAL_STEPS) {
-            _state.value = _state.value.copy(currentStep = _state.value.currentStep + 1)
+        val stateSnapshot = _state.value
+        if (stateSnapshot.currentStep >= TOTAL_STEPS) return
+
+        val validationMessage = validateStep(stateSnapshot.currentStep)
+        if (validationMessage != null) {
+            _state.value = stateSnapshot.copy(formError = validationMessage)
+            return
         }
+
+        _state.value = stateSnapshot.copy(
+            currentStep = stateSnapshot.currentStep + 1,
+            formError = null
+        )
     }
 
     fun onPrimaryAction() {
@@ -154,23 +187,31 @@ class BookViewModel @Inject constructor(
 
     fun onStepBack() {
         if (_state.value.currentStep > 1) {
-            _state.value = _state.value.copy(currentStep = _state.value.currentStep - 1)
+            _state.value = _state.value.copy(
+                currentStep = _state.value.currentStep - 1,
+                formError = null,
+                bookingError = null
+            )
         }
     }
 
     fun canAdvance(): Boolean {
-        return when (_state.value.currentStep) {
-            1 -> _state.value.selectedServiceId.isNotBlank()
-            2 -> _state.value.selectedProviderId.isNotBlank()
+        val stateSnapshot = _state.value
+        return when (stateSnapshot.currentStep) {
+            1 -> stateSnapshot.selectedServiceId.isNotBlank()
+            2 -> stateSnapshot.selectedProviderId.isNotBlank()
             3 -> {
-                _state.value.pickupAddress.isNotBlank() &&
-                    _state.value.dropOffAddress.isNotBlank() &&
-                    _state.value.distanceKmText.isNotBlank() &&
-                    _state.value.scheduledDateText.isNotBlank() &&
-                    _state.value.scheduledTimeText.isNotBlank()
+                val distanceValue = stateSnapshot.distanceKmText.toDoubleOrNull()
+                val scheduledMillis = scheduledDateTimeMillis()
+                stateSnapshot.pickupAddress.isNotBlank() &&
+                    stateSnapshot.dropOffAddress.isNotBlank() &&
+                    distanceValue != null &&
+                    distanceValue > 0.0 &&
+                    scheduledMillis != null &&
+                    scheduledMillis > System.currentTimeMillis()
             }
 
-            else -> !_state.value.isSubmittingBooking
+            else -> !stateSnapshot.isSubmittingBooking
         }
     }
 
@@ -269,6 +310,59 @@ class BookViewModel @Inject constructor(
         )
     }
 
+    private fun validateStep(step: Int): String? {
+        val stateSnapshot = _state.value
+        return when (step) {
+            1 -> if (stateSnapshot.selectedServiceId.isBlank()) {
+                "Select a service type to continue."
+            } else {
+                null
+            }
+
+            2 -> if (stateSnapshot.selectedProviderId.isBlank()) {
+                "Select a provider to continue."
+            } else {
+                null
+            }
+
+            3 -> {
+                when {
+                    stateSnapshot.pickupAddress.isBlank() -> "Pickup address is required."
+                    stateSnapshot.dropOffAddress.isBlank() -> "Drop-off address is required."
+                    stateSnapshot.distanceKmText.toDoubleOrNull() == null -> "Distance must be a number."
+                    stateSnapshot.distanceKmText.toDoubleOrNull()?.let { it <= 0.0 } == true -> {
+                        "Distance must be greater than zero."
+                    }
+
+                    scheduledDateTimeMillis() == null -> "Please pick both date and time."
+                    scheduledDateTimeMillis()?.let { it <= System.currentTimeMillis() } == true -> {
+                        "Schedule must be set in the future."
+                    }
+
+                    else -> null
+                }
+            }
+
+            else -> null
+        }
+    }
+
+    private fun normalizeDistanceInput(value: String): String {
+        val builder = StringBuilder()
+        var dotSeen = false
+
+        value.forEach { ch ->
+            if (ch.isDigit()) {
+                builder.append(ch)
+            } else if (ch == '.' && !dotSeen) {
+                builder.append(ch)
+                dotSeen = true
+            }
+        }
+
+        return builder.toString()
+    }
+
     private fun generateOtpCode(): String {
         val code = Random.nextInt(from = 1000, until = 10000)
         return code.toString()
@@ -294,6 +388,7 @@ data class BookUiState(
     val providers: List<Provider> = emptyList(),
     val isLoadingProviders: Boolean = false,
     val providersError: String? = null,
+    val formError: String? = null,
     val isSubmittingBooking: Boolean = false,
     val bookingError: String? = null,
     val createdBooking: Booking? = null,
