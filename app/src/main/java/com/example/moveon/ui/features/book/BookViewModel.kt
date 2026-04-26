@@ -4,6 +4,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moveon.domain.model.Booking
+import com.example.moveon.domain.model.BookingStatus
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.domain.model.User
 import com.example.moveon.domain.repository.AuthRepository
@@ -18,6 +20,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.random.Random
 import javax.inject.Inject
 
 @HiltViewModel
@@ -134,6 +137,21 @@ class BookViewModel @Inject constructor(
         }
     }
 
+    fun onPrimaryAction() {
+        val snapshot = _state.value
+        if (snapshot.currentStep < TOTAL_STEPS) {
+            onStepAdvance()
+            return
+        }
+
+        if (snapshot.createdBooking != null) {
+            resetForNewBooking()
+            return
+        }
+
+        submitBooking()
+    }
+
     fun onStepBack() {
         if (_state.value.currentStep > 1) {
             _state.value = _state.value.copy(currentStep = _state.value.currentStep - 1)
@@ -152,8 +170,108 @@ class BookViewModel @Inject constructor(
                     _state.value.scheduledTimeText.isNotBlank()
             }
 
-            else -> true
+            else -> !_state.value.isSubmittingBooking
         }
+    }
+
+    fun dismissOtpDialog() {
+        _state.value = _state.value.copy(showOtpDialog = false)
+    }
+
+    fun openOtpDialog() {
+        if (_state.value.createdBooking != null) {
+            _state.value = _state.value.copy(showOtpDialog = true)
+        }
+    }
+
+    private fun submitBooking() {
+        val snapshot = _state.value
+        if (snapshot.isSubmittingBooking) return
+
+        val userId = currentUser.value?.id
+        if (userId.isNullOrBlank()) {
+            _state.value = snapshot.copy(bookingError = "Please login again to continue booking.")
+            return
+        }
+
+        val selectedProvider = snapshot.providers.firstOrNull { it.id == snapshot.selectedProviderId }
+        if (selectedProvider == null) {
+            _state.value = snapshot.copy(bookingError = "Please select a provider before confirming.")
+            return
+        }
+
+        val distanceKm = snapshot.distanceKmText.toDoubleOrNull()
+        if (distanceKm == null || distanceKm <= 0.0) {
+            _state.value = snapshot.copy(bookingError = "Please enter a valid distance in kilometers.")
+            return
+        }
+
+        val scheduledAt = scheduledDateTimeMillis()
+        if (scheduledAt == null) {
+            _state.value = snapshot.copy(bookingError = "Please pick both date and time.")
+            return
+        }
+
+        if (scheduledAt <= System.currentTimeMillis()) {
+            _state.value = snapshot.copy(bookingError = "Booking time must be in the future.")
+            return
+        }
+
+        val fare = selectedProvider.baseRate + (selectedProvider.ratePerKm * distanceKm)
+        val otp = generateOtpCode()
+        val bookingToCreate = Booking(
+            id = "",
+            userId = userId,
+            providerId = selectedProvider.id,
+            status = BookingStatus.SEARCHING,
+            pickupAddress = snapshot.pickupAddress.trim(),
+            dropOffAddress = snapshot.dropOffAddress.trim(),
+            totalFare = fare,
+            otp = otp,
+            isOtpVerified = false,
+            createdAt = System.currentTimeMillis(),
+            scheduledTime = scheduledAt,
+            rating = 0f
+        )
+
+        _state.value = snapshot.copy(
+            isSubmittingBooking = true,
+            bookingError = null
+        )
+
+        viewModelScope.launch {
+            logisticsRepository.createBooking(bookingToCreate)
+                .onSuccess { createdBooking ->
+                    _state.value = _state.value.copy(
+                        isSubmittingBooking = false,
+                        bookingError = null,
+                        createdBooking = createdBooking,
+                        showOtpDialog = true
+                    )
+                }
+                .onFailure { throwable ->
+                    _state.value = _state.value.copy(
+                        isSubmittingBooking = false,
+                        bookingError = throwable.message ?: "Could not confirm booking right now."
+                    )
+                }
+        }
+    }
+
+    private fun resetForNewBooking() {
+        val providersSnapshot = _state.value.providers
+        val providersLoading = _state.value.isLoadingProviders
+
+        _state.value = BookUiState(
+            providers = providersSnapshot,
+            isLoadingProviders = providersLoading,
+            providersError = null
+        )
+    }
+
+    private fun generateOtpCode(): String {
+        val code = Random.nextInt(from = 1000, until = 10000)
+        return code.toString()
     }
 
     companion object {
@@ -175,5 +293,9 @@ data class BookUiState(
     val scheduledTimeText: String = "",
     val providers: List<Provider> = emptyList(),
     val isLoadingProviders: Boolean = false,
-    val providersError: String? = null
+    val providersError: String? = null,
+    val isSubmittingBooking: Boolean = false,
+    val bookingError: String? = null,
+    val createdBooking: Booking? = null,
+    val showOtpDialog: Boolean = false
 )

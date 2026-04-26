@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
@@ -50,6 +52,7 @@ fun BookScreen(
     val providerCards = state.providers.map { provider ->
         provider.toProviderCardUi()
     }
+    val createdBooking = state.createdBooking
 
     val openDatePicker: () -> Unit = {
         val now = Calendar.getInstance()
@@ -233,8 +236,12 @@ fun BookScreen(
 
                     else -> {
                         BookStepHeader(
-                            title = "Trip Details",
-                            subtitle = "Review your booking details before confirmation.",
+                            title = if (createdBooking == null) "Trip Details" else "Booking Confirmed",
+                            subtitle = if (createdBooking == null) {
+                                "Review your booking details before confirmation."
+                            } else {
+                                "Your move is booked. Share OTP with your driver at pickup."
+                            },
                             step = 4,
                             totalSteps = BookViewModel.TOTAL_STEPS
                         )
@@ -292,11 +299,39 @@ fun BookScreen(
                                 )
 
                                 Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "Submission and confirmation will be finalized in the next implementation step.",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = LightTextSecondary
-                                )
+                                if (createdBooking == null) {
+                                    Text(
+                                        text = "Confirm to finalize this booking request.",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = LightTextSecondary
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Booking ID: ${createdBooking.id}",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = LightTextPrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Status: ${createdBooking.status.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = LightTextSecondary
+                                    )
+                                    TextButton(
+                                        onClick = viewModel::openOtpDialog,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(text = "View OTP Code")
+                                    }
+                                }
+
+                                if (state.bookingError != null) {
+                                    Text(
+                                        text = state.bookingError,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = LightTextSecondary
+                                    )
+                                }
                             }
                         }
                     }
@@ -306,11 +341,15 @@ fun BookScreen(
             BookActionFooter(
                 primaryLabel = if (state.currentStep < BookViewModel.TOTAL_STEPS) {
                     "Continue"
+                } else if (state.isSubmittingBooking) {
+                    "Confirming..."
+                } else if (createdBooking == null) {
+                    "Confirm Booking"
                 } else {
-                    "Continue to Confirm"
+                    "Book Another Move"
                 },
                 onPrimaryClick = {
-                    viewModel.onStepAdvance()
+                    viewModel.onPrimaryAction()
                 },
                 secondaryLabel = if (state.currentStep > 1) "Back" else null,
                 onSecondaryClick = if (state.currentStep > 1) {
@@ -322,6 +361,38 @@ fun BookScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+
+    if (state.showOtpDialog && createdBooking != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissOtpDialog,
+            title = {
+                Text(
+                    text = "Move Start OTP",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Share this OTP with your assigned driver to start the move.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LightTextSecondary
+                    )
+                    Text(
+                        text = createdBooking.otp,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = LightTextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissOtpDialog) {
+                    Text("Done")
+                }
+            }
+        )
     }
 }
 
