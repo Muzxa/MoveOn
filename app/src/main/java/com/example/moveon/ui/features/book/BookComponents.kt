@@ -6,24 +6,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.LocalShipping
-import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,25 +41,25 @@ import com.example.moveon.ui.theme.LightSurfaceVariant
 import com.example.moveon.ui.theme.LightTextPrimary
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
-import com.example.moveon.ui.theme.Success
 
 data class BookServiceCardUi(
     val id: String,
     val title: String,
     val subtitle: String,
-    val capacityLabel: String,
-    val etaLabel: String,
-    val baseRateLabel: String,
-    val icon: ImageVector = Icons.Outlined.LocalShipping
+    val iconEmoji: String,
+    val recommended: Boolean = false,
+    val baseRateLabel: String
 )
 
 data class BookProviderCardUi(
     val id: String,
     val name: String,
-    val ratingLabel: String,
-    val fleetLabel: String,
-    val priceLabel: String,
-    val etaLabel: String
+    val initials: String,
+    val rating: String,
+    val ratingCount: String,
+    val movesLabel: String,
+    val etaLabel: String,
+    val priceLabel: String
 )
 
 @Composable
@@ -66,45 +67,105 @@ fun BookStepHeader(
     title: String,
     subtitle: String,
     step: Int,
-    totalSteps: Int,
     modifier: Modifier = Modifier
 ) {
-    val progress = if (totalSteps <= 0) 0f else step.toFloat() / totalSteps.toFloat()
-
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .background(LightSurface)
+            .padding(top = 8.dp)
     ) {
+        BookProgressStepper(currentStep = step)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = LightTextPrimary
-            )
-            Text(
-                text = "Step $step/$totalSteps",
-                style = MaterialTheme.typography.labelLarge,
-                color = LightTextSecondary
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = LightTextPrimary
+                )
+
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = LightTextSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookProgressStepper(currentStep: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        StepIndicator(step = 1, currentStep = currentStep, title = "Vehicle")
+        StepConnector()
+        StepIndicator(step = 2, currentStep = currentStep, title = "Provider")
+        StepConnector()
+        StepIndicator(step = 3, currentStep = currentStep, title = "Details")
+    }
+}
+
+@Composable
+private fun RowScope.StepConnector() {
+    Spacer(
+        modifier = Modifier
+            .weight(1f)
+            .height(1.dp)
+            .background(LightBorder)
+    )
+}
+
+@Composable
+private fun StepIndicator(step: Int, currentStep: Int, title: String) {
+    val completed = currentStep > step
+    val active = currentStep == step
+    val bgColor = when {
+        completed -> Primary
+        active -> Primary
+        else -> LightBorder
+    }
+    val contentColor = if (completed || active) Color.White else Color(0xFF666666)
+
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(bgColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (completed) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            } else {
+                Text(
+                    text = step.toString(),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = contentColor,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = LightTextSecondary
-        )
-
-        LinearProgressIndicator(
-            progress = { progress.coerceIn(0f, 1f) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp),
-            color = Primary,
-            trackColor = LightSurfaceVariant
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = LightTextPrimary,
+            fontWeight = if (active || completed) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
@@ -121,29 +182,30 @@ fun BookServiceListCard(
             .fillMaxWidth()
             .clickable(onClick = onSelect),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = LightSurface),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) Color(0xFFDDECF9) else LightSurface
+        ),
         border = BorderStroke(
-            width = if (selected) 2.dp else 1.dp,
+            width = if (selected) 1.5.dp else 1.dp,
             color = if (selected) Primary else LightBorder
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .background(Primary.copy(alpha = 0.1f), CircleShape),
+                    .background(Color(0xFFE8EDF3), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = service.icon,
-                    contentDescription = null,
-                    tint = Primary
+                Text(
+                    text = service.iconEmoji,
+                    style = MaterialTheme.typography.headlineSmall
                 )
             }
 
@@ -153,39 +215,41 @@ fun BookServiceListCard(
             ) {
                 Text(
                     text = service.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.headlineSmall,
                     color = LightTextPrimary
                 )
                 Text(
                     text = service.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.titleMedium,
                     color = LightTextSecondary
                 )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BookPillLabel(text = service.capacityLabel, background = LightSurfaceVariant)
-                    BookPillLabel(text = service.etaLabel, background = LightSurfaceVariant)
-                }
             }
 
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
+                if (service.recommended) {
+                    Box(
+                        modifier = Modifier
+                            .offset(y = (-2).dp)
+                            .background(Accent, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 9.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Recommended",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White
+                        )
+                    }
+                }
+
                 Text(
                     text = service.baseRateLabel,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Accent,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Primary,
                     fontWeight = FontWeight.SemiBold
                 )
-
-                if (selected) {
-                    Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
-                        contentDescription = null,
-                        tint = Success
-                    )
-                }
             }
         }
     }
@@ -205,19 +269,18 @@ fun BookProviderListCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = LightSurface),
         border = BorderStroke(
-            width = if (selected) 2.dp else 1.dp,
+            width = if (selected) 1.5.dp else 1.dp,
             color = if (selected) Primary else LightBorder
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
@@ -226,22 +289,22 @@ fun BookProviderListCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
-                            .background(Primary.copy(alpha = 0.1f), CircleShape),
+                            .size(46.dp)
+                            .background(Color(0xFFE8EDF3), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.PersonOutline,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(18.dp)
+                        Text(
+                            text = provider.initials,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Primary,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
 
                     Column {
                         Text(
                             text = provider.name,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.headlineSmall,
                             color = LightTextPrimary
                         )
                         Row(
@@ -249,37 +312,63 @@ fun BookProviderListCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.StarOutline,
+                                imageVector = Icons.Outlined.Star,
                                 contentDescription = null,
                                 tint = Accent,
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = provider.ratingLabel,
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "${provider.rating} (${provider.ratingCount})",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = LightTextSecondary
                             )
                         }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.LocalShipping,
+                                    contentDescription = null,
+                                    tint = LightTextSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = provider.movesLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = LightTextSecondary
+                                )
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.WatchLater,
+                                    contentDescription = null,
+                                    tint = LightTextSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = provider.etaLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = LightTextSecondary
+                                )
+                            }
+                        }
                     }
                 }
-
-                if (selected) {
-                    Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
-                        contentDescription = null,
-                        tint = Success
-                    )
-                }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BookPillLabel(text = provider.fleetLabel, background = LightSurfaceVariant)
-                BookPillLabel(text = provider.etaLabel, background = LightSurfaceVariant)
             }
 
             Text(
                 text = provider.priceLabel,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.labelLarge,
                 color = Accent,
                 fontWeight = FontWeight.SemiBold
             )

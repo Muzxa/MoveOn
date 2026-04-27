@@ -178,11 +178,15 @@ class BookViewModel @Inject constructor(
         }
 
         if (snapshot.createdBooking != null) {
-            resetForNewBooking()
+            openOtpDialog()
             return
         }
 
         submitBooking()
+    }
+
+    fun startNewBooking() {
+        resetForNewBooking()
     }
 
     fun onStepBack() {
@@ -369,7 +373,7 @@ class BookViewModel @Inject constructor(
     }
 
     companion object {
-        const val TOTAL_STEPS = 4
+        const val TOTAL_STEPS = 3
     }
 }
 
