@@ -9,8 +9,6 @@ import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.domain.model.Vehicle
 import com.example.moveon.domain.repository.LogisticsRepository
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.firestore.util.LogicUtils
 import javax.inject.Inject
 
 class LogisticsRepositoryImpl @Inject constructor(
@@ -46,6 +44,13 @@ class LogisticsRepositoryImpl @Inject constructor(
         return runCatching {
             firebaseService.getBookingsForProvider(providerId)
                 .map { it.toDomainModel() }
+        }
+    }
+
+    override suspend fun createBooking(booking: Booking): Result<Booking> {
+        return runCatching {
+            firebaseService.createBooking(booking.toDto())
+                .toDomainModel()
         }
     }
 
