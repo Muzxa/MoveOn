@@ -263,8 +263,24 @@ class InventoryRepositoryImpl @Inject constructor(
             .map { entities -> entities.map { it.toDomainModel() } }
     }
 
+    override fun getTotalItemsCount(): Flow<Int> {
+        return itemDao.getTotalItemsCount()
+    }
+
+    override fun getTotalFragileItemsCount(): Flow<Int> {
+        return itemDao.getTotalFragileItemsCount()
+    }
+
     override suspend fun addItemToInventory(item: Item) {
         itemDao.insertItem(item.toEntity())
+    }
+
+    override suspend fun updateItemInInventory(item: Item) {
+        itemDao.updateItem(item.toEntity())
+    }
+
+    override suspend fun deleteItemFromInventory(item: Item) {
+        itemDao.deleteItem(item.toEntity())
     }
 
     override suspend fun getTotalBoxesCount(): Int {

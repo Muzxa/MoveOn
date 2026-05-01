@@ -275,7 +275,7 @@ private fun AddItemCameraPreview(
 }
 
 @Composable
-private fun AddItemDialog(
+fun AddItemDialog(
     imageUri: String?,
     onDismiss: () -> Unit,
     onSave: (
@@ -284,12 +284,20 @@ private fun AddItemDialog(
         description: String,
         isFragile: Boolean,
         imageUrl: String
-    ) -> Unit
+    ) -> Unit,
+    initialName: String = "",
+    initialQuantity: Int = 1,
+    initialDescription: String = "",
+    initialIsFragile: Boolean = false,
+    title: String = "Add Item",
+    confirmLabel: String = "Save Changes"
 ) {
-    var name by remember { mutableStateOf("") }
-    var quantityText by remember { mutableStateOf("1") }
-    var description by remember { mutableStateOf("") }
-    var isFragile by remember { mutableStateOf(false) }
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    var quantityText by remember(initialQuantity) {
+        mutableStateOf(initialQuantity.coerceAtLeast(1).toString())
+    }
+    var description by remember(initialDescription) { mutableStateOf(initialDescription) }
+    var isFragile by remember(initialIsFragile) { mutableStateOf(initialIsFragile) }
     val modalTextColor = Color.Black
     val modalHintColor = Color(0xFF424242)
 
@@ -310,7 +318,7 @@ private fun AddItemDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Add Item",
+                        text = title,
                         style = MaterialTheme.typography.headlineSmall,
                         color = modalTextColor
                     )
@@ -450,7 +458,7 @@ private fun AddItemDialog(
                         textColor = LightTextPrimary
                     )
                     MoveOnPillButton(
-                        text = "Save Changes",
+                        text = confirmLabel,
                         onClick = {
                             val quantity = quantityText.toIntOrNull() ?: 1
                             onSave(name, quantity, description, isFragile, imageUri.orEmpty())

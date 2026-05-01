@@ -16,6 +16,12 @@ interface ItemDao{
     @Query("SELECT * FROM items WHERE box_id = :boxId")
     fun getItemInBox(boxId: String): Flow<List<ItemEntity>>
 
+    @Query("SELECT COALESCE(SUM(quantity), 0) FROM items")
+    fun getTotalItemsCount(): Flow<Int>
+
+    @Query("SELECT COALESCE(SUM(quantity), 0) FROM items WHERE is_fragile = 1")
+    fun getTotalFragileItemsCount(): Flow<Int>
+
     @Update
     suspend fun updateItem(item: ItemEntity)
 

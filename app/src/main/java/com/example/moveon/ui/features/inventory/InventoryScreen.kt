@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -33,20 +35,27 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Print
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -70,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.moveon.ui.components.BoxIcon
 import com.example.moveon.ui.components.DashboardTab
@@ -127,6 +137,12 @@ private data class ModifyBoxDialogData(
     val category: MoveOnCategory
 )
 
+private data class DeleteBoxDialogData(
+    val boxUuid: String,
+    val boxId: String,
+    val itemCount: Int?
+)
+
 @Composable
 fun InventoryScreen(
     onTabSelected: (DashboardTab) -> Unit = {},
@@ -140,6 +156,8 @@ fun InventoryScreen(
     val context = LocalContext.current
     var qrViewerData by remember { mutableStateOf<QrViewerData?>(null) }
     var modifyBoxData by remember { mutableStateOf<ModifyBoxDialogData?>(null) }
+    var deleteBoxData by remember { mutableStateOf<DeleteBoxDialogData?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collect { event ->
@@ -174,6 +192,24 @@ fun InventoryScreen(
             category = it.category,
             roomLabel = it.label
         )
+    }
+
+    val normalizedQuery = searchQuery.trim().lowercase()
+    val filteredPackedBoxes = if (normalizedQuery.isBlank()) {
+        packedBoxes
+    } else {
+        packedBoxes.filter { box ->
+            listOf(box.code, box.roomLabel, toTitle(box.category))
+                .any { it.lowercase().contains(normalizedQuery) }
+        }
+    }
+    val filteredUnpackedBoxes = if (normalizedQuery.isBlank()) {
+        unpackedBoxes
+    } else {
+        unpackedBoxes.filter { box ->
+            listOf(box.code, box.roomLabel, toTitle(box.category))
+                .any { it.lowercase().contains(normalizedQuery) }
+        }
     }
 
     Scaffold(
@@ -212,9 +248,13 @@ fun InventoryScreen(
                         label = "Boxes",
                         modifier = Modifier.weight(1f)
                     )
-                    MoveOnStatCard(value = "17", label = "Items", modifier = Modifier.weight(1f))
                     MoveOnStatCard(
-                        value = "8",
+                        value = state.totalItemsCount.toString(),
+                        label = "Items",
+                        modifier = Modifier.weight(1f)
+                    )
+                    MoveOnStatCard(
+                        value = state.totalFragileItemsCount.toString(),
                         label = "Fragile",
                         modifier = Modifier.weight(1f),
                         valueColor = Accent
@@ -223,7 +263,10 @@ fun InventoryScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                SearchBarPlaceholder()
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it }
+                )
 
                 Spacer(Modifier.height(12.dp))
 
@@ -255,20 +298,24 @@ fun InventoryScreen(
                 )
             }
 
-            if (packedBoxes.isEmpty()) {
+            if (filteredPackedBoxes.isEmpty()) {
                 item {
                     Text(
-                        text = "No packed boxes yet",
+                        text = if (normalizedQuery.isBlank()) {
+                            "No packed boxes yet"
+                        } else {
+                            "No packed boxes match your search"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = LightTextSecondary
                     )
                 }
             }
 
-            items(packedBoxes.size) { index ->
+            items(filteredPackedBoxes.size) { index ->
                 PackedBoxCard(
-                    box = packedBoxes[index],
-                    onCardClick = { onBoxClick(packedBoxes[index].boxUuid, false) },
+                    box = filteredPackedBoxes[index],
+                    onCardClick = { onBoxClick(filteredPackedBoxes[index].boxUuid, false) },
                     onViewQrCodeClick = { boxUuid, boxCode, roomLabel ->
                         qrViewerData = QrViewerData(
                             boxUuid = boxUuid,
@@ -278,21 +325,21 @@ fun InventoryScreen(
                     },
                     onAddItemsClick = {
                         onAddItemsClick(
-                            packedBoxes[index].boxUuid,
-                            extractBoxId(packedBoxes[index].code)
+                            filteredPackedBoxes[index].boxUuid,
+                            extractBoxId(filteredPackedBoxes[index].code)
                         )
                     },
                     onMarkAsUnpackedClick = {
                         viewModel.onEvent(
                             InventoryEvent.SetPackedState(
-                                boxUuid = packedBoxes[index].boxUuid,
-                                boxId = extractBoxId(packedBoxes[index].code),
+                                boxUuid = filteredPackedBoxes[index].boxUuid,
+                                boxId = extractBoxId(filteredPackedBoxes[index].code),
                                 packed = false
                             )
                         )
                     },
                     onEditBoxClick = {
-                        val box = packedBoxes[index]
+                        val box = filteredPackedBoxes[index]
                         modifyBoxData = ModifyBoxDialogData(
                             boxUuid = box.boxUuid,
                             boxId = extractBoxId(box.code),
@@ -301,11 +348,10 @@ fun InventoryScreen(
                         )
                     },
                     onDeleteBoxClick = {
-                        viewModel.onEvent(
-                            InventoryEvent.DeleteBox(
-                                boxUuid = packedBoxes[index].boxUuid,
-                                boxId = extractBoxId(packedBoxes[index].code)
-                            )
+                        deleteBoxData = DeleteBoxDialogData(
+                            boxUuid = filteredPackedBoxes[index].boxUuid,
+                            boxId = extractBoxId(filteredPackedBoxes[index].code),
+                            itemCount = filteredPackedBoxes[index].itemCount
                         )
                     }
                 )
@@ -320,20 +366,24 @@ fun InventoryScreen(
                 )
             }
 
-            if (unpackedBoxes.isEmpty()) {
+            if (filteredUnpackedBoxes.isEmpty()) {
                 item {
                     Text(
-                        text = "No boxes found. Tap Add Box to create one.",
+                        text = if (normalizedQuery.isBlank()) {
+                            "No boxes found. Tap Add Box to create one."
+                        } else {
+                            "No boxes match your search"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = LightTextSecondary
                     )
                 }
             }
 
-            items(unpackedBoxes.size) { index ->
+            items(filteredUnpackedBoxes.size) { index ->
                 UnpackedBoxCard(
-                    box = unpackedBoxes[index],
-                    onCardClick = { onBoxClick(unpackedBoxes[index].boxUuid, false) },
+                    box = filteredUnpackedBoxes[index],
+                    onCardClick = { onBoxClick(filteredUnpackedBoxes[index].boxUuid, false) },
                     onViewQrCodeClick = { boxUuid, boxCode, roomLabel ->
                         qrViewerData = QrViewerData(
                             boxUuid = boxUuid,
@@ -343,21 +393,21 @@ fun InventoryScreen(
                     },
                     onAddItemsClick = {
                         onAddItemsClick(
-                            unpackedBoxes[index].boxUuid,
-                            extractBoxId(unpackedBoxes[index].code)
+                            filteredUnpackedBoxes[index].boxUuid,
+                            extractBoxId(filteredUnpackedBoxes[index].code)
                         )
                     },
                     onMarkAsUnpackedClick = {
                         viewModel.onEvent(
                             InventoryEvent.SetPackedState(
-                                boxUuid = unpackedBoxes[index].boxUuid,
-                                boxId = extractBoxId(unpackedBoxes[index].code),
+                                boxUuid = filteredUnpackedBoxes[index].boxUuid,
+                                boxId = extractBoxId(filteredUnpackedBoxes[index].code),
                                 packed = true
                             )
                         )
                     },
                     onEditBoxClick = {
-                        val box = unpackedBoxes[index]
+                        val box = filteredUnpackedBoxes[index]
                         modifyBoxData = ModifyBoxDialogData(
                             boxUuid = box.boxUuid,
                             boxId = extractBoxId(box.code),
@@ -366,11 +416,10 @@ fun InventoryScreen(
                         )
                     },
                     onDeleteBoxClick = {
-                        viewModel.onEvent(
-                            InventoryEvent.DeleteBox(
-                                boxUuid = unpackedBoxes[index].boxUuid,
-                                boxId = extractBoxId(unpackedBoxes[index].code)
-                            )
+                        deleteBoxData = DeleteBoxDialogData(
+                            boxUuid = filteredUnpackedBoxes[index].boxUuid,
+                            boxId = extractBoxId(filteredUnpackedBoxes[index].code),
+                            itemCount = null
                         )
                     }
                 )
@@ -416,6 +465,145 @@ fun InventoryScreen(
                     modifyBoxData = null
                 }
             )
+        }
+
+        deleteBoxData?.let { data ->
+            DeleteBoxConfirmationSheet(
+                data = data,
+                onDismiss = { deleteBoxData = null },
+                onConfirm = {
+                    viewModel.onEvent(
+                        InventoryEvent.DeleteBox(
+                            boxUuid = data.boxUuid,
+                            boxId = data.boxId
+                        )
+                    )
+                    deleteBoxData = null
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeleteBoxConfirmationSheet(
+    data: DeleteBoxDialogData,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val itemCount = data.itemCount?.takeIf { it > 0 }
+    val description = if (itemCount != null) {
+        "This will permanently remove the box and all $itemCount logged items. This can't be undone."
+    } else {
+        "This will permanently remove the box and its logged items. This can't be undone."
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = LightSurface,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        dragHandle = {}
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(ErrorDeep.copy(alpha = 0.1f), RoundedCornerShape(999.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                        tint = ErrorDeep,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Delete Box ${data.boxId}?",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = LightTextPrimary
+                    )
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LightTextSecondary
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, LightBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = LightSurfaceVariant)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = null,
+                            tint = LightTextPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = LightTextPrimary
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorDeep)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Delete box",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -583,7 +771,10 @@ private fun AddBoxDialog(
                         color = LightTextPrimary
                     )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         dialogColorOptions.forEach { colorOption ->
                             val selected = state.selectedColorHex == colorOption.hex
                             Box(
@@ -786,7 +977,10 @@ private fun ModifyBoxDialog(
                         color = LightTextPrimary
                     )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         dialogColorOptions.forEach { colorOption ->
                             val selected = selectedColorHex == colorOption.hex
                             Box(
@@ -844,28 +1038,64 @@ private fun ModifyBoxDialog(
 }
 
 @Composable
-private fun SearchBarPlaceholder() {
-    Row(
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        textStyle = MaterialTheme.typography.labelLarge.copy(color = LightTextPrimary),
+        placeholder = {
+            Text(
+                text = "Search boxes or items...",
+                style = MaterialTheme.typography.labelLarge,
+                color = LightTextSecondary
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Outlined.Search,
+                contentDescription = null,
+                tint = LightTextSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+        },
+        trailingIcon = if (query.isNotBlank()) {
+            {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Clear search",
+                        tint = LightTextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        } else {
+            null
+        },
+        singleLine = true,
         modifier = Modifier
             .fillMaxWidth()
-            .height(36.dp)
-            .background(LightSurfaceVariant, RoundedCornerShape(10.dp))
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Search,
-            contentDescription = null,
-            tint = LightTextSecondary,
-            modifier = Modifier.size(16.dp)
+            .height(40.dp),
+        shape = RoundedCornerShape(10.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = LightSurfaceVariant,
+            unfocusedContainerColor = LightSurfaceVariant,
+            disabledContainerColor = LightSurfaceVariant,
+            focusedTextColor = LightTextPrimary,
+            unfocusedTextColor = LightTextPrimary,
+            disabledTextColor = LightTextSecondary,
+            focusedPlaceholderColor = LightTextSecondary,
+            unfocusedPlaceholderColor = LightTextSecondary,
+            disabledPlaceholderColor = LightTextSecondary,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            cursorColor = Primary
         )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = "Search boxes or items...",
-            style = MaterialTheme.typography.labelLarge,
-            color = LightTextSecondary
-        )
-    }
+    )
 }
 
 @Composable
