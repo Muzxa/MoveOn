@@ -7,6 +7,10 @@ data class BookingDto(
     val status: String = "Searching", // Confirmed, Active, or Completed
     val pickup_address: String = "",
     val dropoff_address: String = "",
+    val pickup_lat: Double = 0.0,
+    val pickup_lng: Double = 0.0,
+    val dropoff_lat: Double = 0.0,
+    val dropoff_lng: Double = 0.0,
     val total_fare: Double = 0.0,
     val otp: String = "",
     val otp_verified: Boolean = false,

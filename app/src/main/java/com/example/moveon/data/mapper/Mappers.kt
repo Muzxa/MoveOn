@@ -82,6 +82,10 @@ fun BookingDto.toDomainModel(): Booking = Booking(
     },
     pickupAddress = this.pickup_address,
     dropOffAddress = this.dropoff_address,
+    pickupLat = this.pickup_lat,
+    pickupLng = this.pickup_lng,
+    dropOffLat = this.dropoff_lat,
+    dropOffLng = this.dropoff_lng,
     totalFare = this.total_fare,
     otp = this.otp,
     isOtpVerified = this.otp_verified,
@@ -103,6 +107,10 @@ fun Booking.toDto(): BookingDto = BookingDto(
     },
     pickup_address = this.pickupAddress,
     dropoff_address = this.dropOffAddress,
+    pickup_lat = this.pickupLat,
+    pickup_lng = this.pickupLng,
+    dropoff_lat = this.dropOffLat,
+    dropoff_lng = this.dropOffLng,
     total_fare = this.totalFare,
     otp = this.otp,
     otp_verified = this.isOtpVerified,
@@ -145,7 +153,9 @@ fun ProviderDto.toDomainModel(): Provider = Provider(
     isVerified = this.is_verified,
     rating = this.rating,
     baseRate = this.base_rate,
-    ratePerKm = this.rate_per_km
+    ratePerKm = this.rate_per_km,
+    businessLat = this.business_lat,
+    businessLng = this.business_lng
 )
 
 fun Provider.toDto(): ProviderDto = ProviderDto(
@@ -154,7 +164,9 @@ fun Provider.toDto(): ProviderDto = ProviderDto(
     is_verified = this.isVerified,
     rating = this.rating,
     base_rate = this.baseRate,
-    rate_per_km = this.ratePerKm
+    rate_per_km = this.ratePerKm,
+    business_lat = this.businessLat,
+    business_lng = this.businessLng
 )
 
 // Driver Mappings
