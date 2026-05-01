@@ -47,8 +47,7 @@ data class BookServiceCardUi(
     val title: String,
     val subtitle: String,
     val iconEmoji: String,
-    val recommended: Boolean = false,
-    val baseRateLabel: String
+    val recommended: Boolean = false
 )
 
 data class BookProviderCardUi(
@@ -211,44 +210,39 @@ fun BookServiceListCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp) // Added slight spacing between the title row and subtitle
             ) {
-                Text(
-                    text = service.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = LightTextPrimary
-                )
-                Text(
-                    text = service.subtitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = LightTextSecondary
-                )
-            }
+                // Wrap Title and Recommended Pill in a Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = service.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = LightTextPrimary
+                    )
 
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                if (service.recommended) {
-                    Box(
-                        modifier = Modifier
-                            .offset(y = (-2).dp)
-                            .background(Accent, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 9.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "Recommended",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White
-                        )
+                    if (service.recommended) {
+                        Box(
+                            modifier = Modifier
+                                .background(Accent, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 9.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Recommended",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
 
                 Text(
-                    text = service.baseRateLabel,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Primary,
-                    fontWeight = FontWeight.SemiBold
+                    text = service.subtitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = LightTextSecondary
                 )
             }
         }
