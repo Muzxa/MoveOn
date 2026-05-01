@@ -97,6 +97,86 @@ class BoxItemsViewModel @Inject constructor(
             onResult(saveSuccessful)
         }
     }
+
+    fun updateItem(
+        item: Item,
+        onResult: (Boolean) -> Unit = {}
+    ) {
+        val normalizedName = item.name.trim()
+        if (normalizedName.isBlank()) {
+            viewModelScope.launch {
+                _eventFlow.emit(BoxItemsUiEvent.ShowToast("Item name is required"))
+                onResult(false)
+            }
+            return
+        }
+
+        if (item.quantity <= 0) {
+            viewModelScope.launch {
+                _eventFlow.emit(BoxItemsUiEvent.ShowToast("Quantity must be at least 1"))
+                onResult(false)
+            }
+            return
+        }
+
+        val updatedItem = item.copy(
+            name = normalizedName,
+            description = item.description.trim()
+        )
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSaving = true)
+            var saveSuccessful = false
+
+            runCatching {
+                inventoryRepository.updateItemInInventory(updatedItem)
+            }.onSuccess {
+                saveSuccessful = true
+                _uiState.value = _uiState.value.copy(
+                    items = _uiState.value.items.map { current ->
+                        if (current.id == updatedItem.id) updatedItem else current
+                    }
+                )
+                _eventFlow.emit(BoxItemsUiEvent.ShowToast("Item updated"))
+            }.onFailure { throwable ->
+                _eventFlow.emit(
+                    BoxItemsUiEvent.ShowToast(
+                        throwable.message ?: "Failed to update item"
+                    )
+                )
+            }
+
+            _uiState.value = _uiState.value.copy(isSaving = false)
+            onResult(saveSuccessful)
+        }
+    }
+
+    fun deleteItem(
+        item: Item,
+        onResult: (Boolean) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            var deleteSuccessful = false
+
+            runCatching {
+                inventoryRepository.deleteItemFromInventory(item)
+            }.onSuccess {
+                deleteSuccessful = true
+                _uiState.value = _uiState.value.copy(
+                    items = _uiState.value.items.filterNot { current -> current.id == item.id }
+                )
+                _eventFlow.emit(BoxItemsUiEvent.ShowToast("Item deleted"))
+            }.onFailure { throwable ->
+                _eventFlow.emit(
+                    BoxItemsUiEvent.ShowToast(
+                        throwable.message ?: "Failed to delete item"
+                    )
+                )
+            }
+
+            onResult(deleteSuccessful)
+        }
+    }
 }
 
 data class BoxItemsUiState(

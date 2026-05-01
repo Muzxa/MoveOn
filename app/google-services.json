@@ -1,41 +1,34 @@
 {
   "project_info": {
-    "project_number": "1037727796202",
-    "project_id": "moveon-d1d1c",
-    "storage_bucket": "moveon-d1d1c.firebasestorage.app"
+    "project_number": "661901339720",
+    "firebase_url": "https://moveon-586ff-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "moveon-586ff",
+    "storage_bucket": "moveon-586ff.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1037727796202:android:7890aacd5b35fa1cb6c093",
+        "mobilesdk_app_id": "1:661901339720:android:f63b6037c1368b6c4b3c7d",
         "android_client_info": {
           "package_name": "com.example.moveon"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1037727796202-7a9p6154gh6pdtdfdd7n3rp3nronik5l.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.moveon",
-            "certificate_hash": "4135aa9001c7ef56fe68d9afb411b5dac0a38ae4"
-          }
-        },
-        {
-          "client_id": "1037727796202-8t9jp890rhk8vrpf9rdvf01g5varfeim.apps.googleusercontent.com",
+          "client_id": "661901339720-h5t8k24nk7jo8i6rtuiv26543nhkp72e.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBK_GHrsnd4ZXmi7jeD7YayB4JyyRdsPbU"
+          "current_key": "AIzaSyC78YYMe5KbCX4gPWtOJIMJvMNvVyHtcME"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "1037727796202-8t9jp890rhk8vrpf9rdvf01g5varfeim.apps.googleusercontent.com",
+              "client_id": "661901339720-h5t8k24nk7jo8i6rtuiv26543nhkp72e.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

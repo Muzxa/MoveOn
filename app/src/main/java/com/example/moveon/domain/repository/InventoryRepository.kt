@@ -31,6 +31,10 @@ interface InventoryRepository {
     suspend fun deleteBoxFromCloud(boxUuid: String, userId: String): Result<Unit>
     fun getBoxesForMove(bookingId: Int): Flow<List<Box>>
     fun getItemsInBox(boxId: String): Flow<List<Item>>
+    fun getTotalItemsCount(): Flow<Int>
+    fun getTotalFragileItemsCount(): Flow<Int>
     suspend fun addItemToInventory(item: Item)
+    suspend fun updateItemInInventory(item: Item)
+    suspend fun deleteItemFromInventory(item: Item)
     suspend fun getTotalBoxesCount(): Int
 }
