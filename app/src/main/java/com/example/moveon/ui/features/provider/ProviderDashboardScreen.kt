@@ -92,55 +92,68 @@ fun ProviderDashboardScreen(
             )
         }
     ) { innerPadding ->
-        if (selectedTab != ProviderDashboardTab.Dashboard && selectedTab != ProviderDashboardTab.Profile) {
-            ProviderToBeImplemented(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            )
-            return@Scaffold
-        }
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                ProviderDashboardHeader(state = state)
-            }
-
-            item {
-                Column(
+        when (selectedTab) {
+            ProviderDashboardTab.Dashboard -> {
+                LazyColumn(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .fillMaxSize()
+                        .padding(innerPadding),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (state.isLoading) {
-                        Text(
-                            text = "Loading dashboard...",
-                            color = LightTextSecondary
-                        )
+                    item {
+                        ProviderDashboardHeader(state = state)
                     }
-                    QuickActionsSection()
-                    EarningsSection(state = state)
-                    KpiSection(state = state)
-                    NewRequestsSection(state = state)
-                    ActiveJobsSection(state = state)
-                    if (state.errorMessage != null) {
-                        Text(
-                            text = state.errorMessage,
-                            color = Accent
-                        )
+
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (state.isLoading) {
+                                Text(
+                                    text = "Loading dashboard...",
+                                    color = LightTextSecondary
+                                )
+                            }
+                            QuickActionsSection()
+                            EarningsSection(state = state)
+                            KpiSection(state = state)
+                            NewRequestsSection(state = state)
+                            ActiveJobsSection(state = state)
+                            if (state.errorMessage != null) {
+                                Text(
+                                    text = state.errorMessage,
+                                    color = Accent
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
 
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
+            ProviderDashboardTab.Vehicles -> {
+                ProviderVehiclesScreen(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                )
             }
+
+            ProviderDashboardTab.Jobs -> {
+                ProviderToBeImplemented(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                )
+            }
+
+            ProviderDashboardTab.Profile -> Unit
         }
     }
 }
@@ -488,4 +501,3 @@ private fun formatRs(value: Double): String {
     val formatter = DecimalFormat("#,###")
     return "Rs${formatter.format(value)}"
 }
-
