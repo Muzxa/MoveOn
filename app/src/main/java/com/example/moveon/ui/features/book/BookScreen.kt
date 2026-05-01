@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Call
@@ -35,7 +36,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -225,7 +228,8 @@ fun BookScreen(
                                         },
                                         placeholder = { Text("House 55, Block J3, WAPDA Town, Lahore") },
                                         singleLine = true,
-                                        shape = RoundedCornerShape(10.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = bookingFieldColors()
                                     )
 
                                     Text(
@@ -246,7 +250,8 @@ fun BookScreen(
                                         },
                                         placeholder = { Text("House 57, Sector E, DHA Phase I, Lahore") },
                                         singleLine = true,
-                                        shape = RoundedCornerShape(10.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = bookingFieldColors()
                                     )
                                 }
                             }
@@ -269,23 +274,11 @@ fun BookScreen(
                                         color = LightTextPrimary
                                     )
 
-                                    OutlinedTextField(
+                                    BookingPickerField(
                                         value = state.scheduledDateText,
-                                        onValueChange = {},
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(onClick = openDatePicker),
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Outlined.AccessTime,
-                                                contentDescription = null,
-                                                tint = LightTextSecondary
-                                            )
-                                        },
-                                        placeholder = { Text("Select date") },
-                                        singleLine = true,
-                                        readOnly = true,
-                                        shape = RoundedCornerShape(10.dp)
+                                        placeholder = "Select date",
+                                        icon = Icons.Outlined.AccessTime,
+                                        onClick = openDatePicker
                                     )
 
                                     Text(
@@ -294,23 +287,11 @@ fun BookScreen(
                                         color = LightTextPrimary
                                     )
 
-                                    OutlinedTextField(
+                                    BookingPickerField(
                                         value = state.scheduledTimeText,
-                                        onValueChange = {},
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(onClick = openTimePicker),
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Outlined.AccessTime,
-                                                contentDescription = null,
-                                                tint = LightTextSecondary
-                                            )
-                                        },
-                                        placeholder = { Text("Select time") },
-                                        singleLine = true,
-                                        readOnly = true,
-                                        shape = RoundedCornerShape(10.dp)
+                                        placeholder = "Select time",
+                                        icon = Icons.Outlined.AccessTime,
+                                        onClick = openTimePicker
                                     )
 
                                     OutlinedTextField(
@@ -319,7 +300,8 @@ fun BookScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         placeholder = { Text("Distance (km)") },
                                         singleLine = true,
-                                        shape = RoundedCornerShape(10.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = bookingFieldColors()
                                     )
                                 }
                             }
@@ -485,6 +467,58 @@ fun BookScreen(
         }
     }
 }
+
+@Composable
+private fun BookingPickerField(
+    value: String,
+    placeholder: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = LightTextSecondary
+                )
+            },
+            placeholder = { Text(placeholder) },
+            singleLine = true,
+            readOnly = true,
+            enabled = false,
+            shape = RoundedCornerShape(10.dp),
+            colors = bookingFieldColors()
+        )
+    }
+}
+
+@Composable
+private fun bookingFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = LightSurface,
+    unfocusedContainerColor = LightSurface,
+    disabledContainerColor = LightSurface,
+    focusedTextColor = LightTextPrimary,
+    unfocusedTextColor = LightTextPrimary,
+    disabledTextColor = LightTextPrimary,
+    focusedPlaceholderColor = LightTextSecondary,
+    unfocusedPlaceholderColor = LightTextSecondary,
+    disabledPlaceholderColor = LightTextSecondary,
+    focusedLeadingIconColor = LightTextSecondary,
+    unfocusedLeadingIconColor = LightTextSecondary,
+    disabledLeadingIconColor = LightTextSecondary,
+    focusedIndicatorColor = LightBorder,
+    unfocusedIndicatorColor = LightBorder,
+    disabledIndicatorColor = LightBorder
+)
 
 @Composable
 private fun TripDetailsContent(

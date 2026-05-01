@@ -69,7 +69,7 @@ import com.example.moveon.ui.theme.LightSurfaceVariant
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
 import com.example.moveon.util.Constants
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
@@ -248,9 +248,7 @@ fun LoginScreen(
                             scope.launch {
                                 try {
                                     val credentialManager = CredentialManager.create(context)
-                                    val googleIdOption = GetGoogleIdOption.Builder()
-                                        .setFilterByAuthorizedAccounts(false)
-                                        .setServerClientId(Constants.GOOGLE_WEB_CLIENT_ID)
+                                    val googleIdOption = GetSignInWithGoogleOption.Builder(Constants.GOOGLE_WEB_CLIENT_ID)
                                         .build()
                                     val request = GetCredentialRequest.Builder()
                                         .addCredentialOption(googleIdOption)
