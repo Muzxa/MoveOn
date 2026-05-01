@@ -17,7 +17,6 @@ class FirebaseService @Inject constructor(
     //fetch providers
     suspend fun getAvailableProviders(): List<ProviderDto>{
         return firestore.collection("providers")
-            .whereEqualTo("is_verified", true)
             .get()
             .await()
             .toObjects(ProviderDto::class.java)
