@@ -52,12 +52,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.moveon.ui.components.LocationPickerField
+import com.example.moveon.ui.components.MapPreviewCard
 import com.example.moveon.ui.theme.LightBackground
 import com.example.moveon.ui.theme.LightBorder
 import com.example.moveon.ui.theme.LightSurface
 import com.example.moveon.ui.theme.LightSurfaceVariant
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
+import com.example.moveon.util.LocationPermissionHandler
 
 @Composable
 fun ProviderSetupStepOneScreen(
@@ -65,95 +68,115 @@ fun ProviderSetupStepOneScreen(
     onNext: () -> Unit
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = LightBackground) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-            ProviderStepHeader(title = "Provider Setup", subtitle = "Step 1 of 3", step = 1)
-
+        LocationPermissionHandler { requestPermission, isPermissionGranted ->
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             ) {
-                Text("Professional Details", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text("Tell us about your transport business", color = LightTextSecondary)
+                ProviderStepHeader(title = "Provider Setup", subtitle = "Step 1 of 3", step = 1)
 
-                ProviderSectionCard {
-                    ProviderField(
-                        label = "Business/Establishment Name *",
-                        value = flowViewModel.businessName,
-                        onValueChange = { flowViewModel.businessName = it },
-                        placeholder = "e.g., Ahmed Transport Services",
-                        leadingIcon = { Icon(Icons.Outlined.Business, contentDescription = null) }
-                    )
-                    ProviderField(
-                        label = "Email",
-                        value = flowViewModel.email,
-                        onValueChange = { flowViewModel.email = it },
-                        placeholder = "you@example.com",
-                        keyboardType = KeyboardType.Email,
-                        leadingIcon = { Icon(Icons.Outlined.MailOutline, contentDescription = null) }
-                    )
-                    ProviderField(
-                        label = "Phone *",
-                        value = flowViewModel.phoneNumber,
-                        onValueChange = { flowViewModel.phoneNumber = it },
-                        placeholder = "0300 1234 567",
-                        keyboardType = KeyboardType.Phone,
-                        leadingIcon = { Icon(Icons.Outlined.Phone, contentDescription = null) }
-                    )
-                }
-
-                ProviderSectionCard {
-                    ProviderField(
-                        label = "Business Address *",
-                        value = flowViewModel.businessAddress,
-                        onValueChange = { flowViewModel.businessAddress = it },
-                        placeholder = "Street address, building number",
-                        leadingIcon = { Icon(Icons.Outlined.LocationOn, contentDescription = null) }
-                    )
-                    ProviderField(
-                        label = "City *",
-                        value = flowViewModel.city,
-                        onValueChange = { flowViewModel.city = it },
-                        placeholder = "Lahore",
-                        leadingIcon = { Icon(Icons.Outlined.Pin, contentDescription = null) }
-                    )
-                }
-
-                ProviderSectionCard {
-                    ProviderField(
-                        label = "Business Description",
-                        value = flowViewModel.businessDescription,
-                        onValueChange = { flowViewModel.businessDescription = it },
-                        placeholder = "Describe your services, specialities, and what makes your business unique...",
-                        leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null) },
-                        singleLine = false,
-                        minLines = 3
-                    )
-                    ProviderField(
-                        label = "Years of Experience",
-                        value = flowViewModel.yearsOfExperience,
-                        onValueChange = { flowViewModel.yearsOfExperience = it },
-                        placeholder = "5",
-                        keyboardType = KeyboardType.Number
-                    )
-                }
-
-                Button(
-                    onClick = onNext,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    enabled = flowViewModel.businessName.isNotBlank() && flowViewModel.phoneNumber.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary,
-                        disabledContainerColor = Primary.copy(alpha = 0.45f)
-                    )
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Text("Next >")
+                    Text("Professional Details", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text("Tell us about your transport business", color = LightTextSecondary)
+
+                    ProviderSectionCard {
+                        ProviderField(
+                            label = "Business/Establishment Name *",
+                            value = flowViewModel.businessName,
+                            onValueChange = { flowViewModel.businessName = it },
+                            placeholder = "e.g., Ahmed Transport Services",
+                            leadingIcon = { Icon(Icons.Outlined.Business, contentDescription = null) }
+                        )
+                        ProviderField(
+                            label = "Email",
+                            value = flowViewModel.email,
+                            onValueChange = { flowViewModel.email = it },
+                            placeholder = "you@example.com",
+                            keyboardType = KeyboardType.Email,
+                            leadingIcon = { Icon(Icons.Outlined.MailOutline, contentDescription = null) }
+                        )
+                        ProviderField(
+                            label = "Phone *",
+                            value = flowViewModel.phoneNumber,
+                            onValueChange = { flowViewModel.phoneNumber = it },
+                            placeholder = "0300 1234 567",
+                            keyboardType = KeyboardType.Phone,
+                            leadingIcon = { Icon(Icons.Outlined.Phone, contentDescription = null) }
+                        )
+                    }
+
+                    ProviderSectionCard {
+                        LocationPickerField(
+                            address = flowViewModel.businessAddress,
+                            onAddressChanged = { flowViewModel.businessAddress = it },
+                            lat = flowViewModel.businessLat,
+                            lng = flowViewModel.businessLng,
+                            onLocationResolved = { lat, lng, address ->
+                                flowViewModel.businessLat = lat
+                                flowViewModel.businessLng = lng
+                                flowViewModel.businessAddress = address
+                            },
+                            placeholder = "Street address, building number",
+                            label = "Business Address *",
+                            onRequestLocationPermission = requestPermission,
+                            isLocationPermissionGranted = isPermissionGranted
+                        )
+
+                        // Show map preview when location is resolved
+                        if (flowViewModel.businessLat != null && flowViewModel.businessLng != null) {
+                            MapPreviewCard(
+                                lat = flowViewModel.businessLat!!,
+                                lng = flowViewModel.businessLng!!,
+                                title = flowViewModel.businessName.ifBlank { "Business Location" }
+                            )
+                        }
+
+                        ProviderField(
+                            label = "City *",
+                            value = flowViewModel.city,
+                            onValueChange = { flowViewModel.city = it },
+                            placeholder = "Lahore",
+                            leadingIcon = { Icon(Icons.Outlined.Pin, contentDescription = null) }
+                        )
+                    }
+
+                    ProviderSectionCard {
+                        ProviderField(
+                            label = "Business Description",
+                            value = flowViewModel.businessDescription,
+                            onValueChange = { flowViewModel.businessDescription = it },
+                            placeholder = "Describe your services, specialities, and what makes your business unique...",
+                            leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null) },
+                            singleLine = false,
+                            minLines = 3
+                        )
+                        ProviderField(
+                            label = "Years of Experience",
+                            value = flowViewModel.yearsOfExperience,
+                            onValueChange = { flowViewModel.yearsOfExperience = it },
+                            placeholder = "5",
+                            keyboardType = KeyboardType.Number
+                        )
+                    }
+
+                    Button(
+                        onClick = onNext,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        enabled = flowViewModel.businessName.isNotBlank() && flowViewModel.phoneNumber.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Primary,
+                            disabledContainerColor = Primary.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Text("Next >")
+                    }
                 }
             }
         }

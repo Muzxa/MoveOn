@@ -30,6 +30,19 @@ class ProviderDashboardViewModel @Inject constructor(
     private val logisticsRepository: LogisticsRepository
 ) : ViewModel() {
 
+    fun acceptBooking(bookingId: String, onComplete: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            try {
+                logisticsRepository.confirmBookingById(bookingId)
+                onComplete(true, null)
+                // refresh list
+                refresh()
+            } catch (e: Exception) {
+                onComplete(false, e.message)
+            }
+        }
+    }
+
     val currentUser: StateFlow<User?> = authRepository.currentUser
         .stateIn(
             scope = viewModelScope,
@@ -134,6 +147,7 @@ class ProviderDashboardViewModel @Inject constructor(
 
         val requestItems = newRequests.take(2).map { booking ->
             ProviderNewRequestUi(
+                bookingId = booking.id,
                 service = planForFare(booking.totalFare),
                 ageLabel = ageLabel(booking.createdAt),
                 pickup = booking.pickupAddress,
@@ -244,6 +258,7 @@ data class ProviderDashboardUiState(
 )
 
 data class ProviderNewRequestUi(
+    val bookingId: String,
     val service: String,
     val ageLabel: String,
     val pickup: String,

@@ -10,9 +10,9 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.example.moveon" />
-                  <option name="mobileSdkAppId" value="1:1037727796202:android:7890aacd5b35fa1cb6c093" />
-                  <option name="projectId" value="moveon-d1d1c" />
-                  <option name="projectNumber" value="1037727796202" />
+                  <option name="mobileSdkAppId" value="1:661901339720:android:f63b6037c1368b6c4b3c7d" />
+                  <option name="projectId" value="moveon-586ff" />
+                  <option name="projectNumber" value="661901339720" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
