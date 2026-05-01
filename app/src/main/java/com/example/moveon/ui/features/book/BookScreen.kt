@@ -807,22 +807,19 @@ private val moveOnServiceOptions = listOf(
         id = "move_lite",
         title = "MoveLite",
         subtitle = "Perfect for small moves like studio apartments or single rooms with minimal furniture",
-        iconEmoji = "🚙",
-        baseRateLabel = "PKR 3,500"
+        iconEmoji = "🚙"
     ),
     BookServiceCardUi(
         id = "move_big",
         title = "MoveBig",
         subtitle = "Great for medium homes, apartments, or offices with standard furniture and belongings",
         iconEmoji = "🚚",
-        recommended = true,
-        baseRateLabel = "PKR 5,000"
+        recommended = true
     ),
     BookServiceCardUi(
         id = "move_max",
         title = "MoveMax",
         subtitle = "Built for large homes or complete office relocations with heavy furniture and appliances",
-        iconEmoji = "🚛",
-        baseRateLabel = "PKR 7,000"
+        iconEmoji = "🚛"
     )
 )
