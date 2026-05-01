@@ -122,7 +122,8 @@ fun VehicleDto.toDomainModel(): Vehicle = Vehicle(
     maxCapacityKg = this.max_capacity,
     maxVolumeKg = this.max_volume,
     currentLat = this.current_lat,
-    currentLng = this.current_lng
+    currentLng = this.current_lng,
+    isAvailable = this.is_available
 )
 
 fun Vehicle.toDto(): VehicleDto = VehicleDto(
@@ -135,7 +136,8 @@ fun Vehicle.toDto(): VehicleDto = VehicleDto(
     max_capacity = this.maxCapacityKg,
     max_volume = this.maxVolumeKg,
     current_lat = this.currentLat,
-    current_lng = this.currentLng
+    current_lng = this.currentLng,
+    is_available = this.isAvailable
 )
 
 // Provider Mappings

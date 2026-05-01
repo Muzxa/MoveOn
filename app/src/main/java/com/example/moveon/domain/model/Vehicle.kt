@@ -10,5 +10,6 @@ data class Vehicle(
     val maxCapacityKg: Double,
     val maxVolumeKg: Double,
     val currentLat: Double,
-    val currentLng: Double
+    val currentLng: Double,
+    val isAvailable: Boolean
 )
