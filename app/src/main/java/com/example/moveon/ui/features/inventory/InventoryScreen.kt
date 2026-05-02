@@ -29,7 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ChevronRight
+// removed unused ChevronRight import; chevron removed from UI
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
@@ -113,8 +113,7 @@ private data class PackedBoxUi(
     val roomLabel: String,
     val category: MoveOnCategory,
     val volume: String,
-    val itemCount: Int,
-    val updatedAt: String
+    val itemCount: Int
 )
 
 private data class UnpackedBoxUi(
@@ -178,8 +177,7 @@ fun InventoryScreen(
                 roomLabel = it.label,
                 category = it.category,
                 volume = "15m³",
-                itemCount = 0,
-                updatedAt = "Just now"
+                itemCount = state.itemCountsByBoxId[it.boxId] ?: 0
             )
         }
 
@@ -1045,7 +1043,7 @@ private fun SearchBar(
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        textStyle = MaterialTheme.typography.labelLarge.copy(color = LightTextPrimary),
+        textStyle = MaterialTheme.typography.bodyMedium.copy(color = LightTextPrimary),
         placeholder = {
             Text(
                 text = "Search boxes or items...",
@@ -1078,7 +1076,7 @@ private fun SearchBar(
         singleLine = true,
         modifier = Modifier
             .fillMaxWidth()
-            .height(40.dp),
+            .height(48.dp),
         shape = RoundedCornerShape(10.dp),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = LightSurfaceVariant,
@@ -1109,6 +1107,7 @@ private fun PackedBoxCard(
     onDeleteBoxClick: (String) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var showAddItemsConfirmation by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -1169,7 +1168,7 @@ private fun PackedBoxCard(
                             packedActionLabel = "Mark As Unpacked",
                             onAddItems = {
                                 menuExpanded = false
-                                onAddItemsClick()
+                                showAddItemsConfirmation = true
                             },
                             onTogglePackedState = {
                                 menuExpanded = false
@@ -1210,20 +1209,137 @@ private fun PackedBoxCard(
                                 color = LightTextPrimary
                             )
                         }
-                        Text(
-                            text = box.updatedAt,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LightTextSecondary,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
                     }
 
+                    // Chevron removed for cleaner row layout
+                }
+            }
+        }
+    }
+
+    if (showAddItemsConfirmation) {
+        PackedBoxAddConfirmationSheet(
+            boxId = box.code,
+            onDismiss = { showAddItemsConfirmation = false },
+            onConfirm = {
+                showAddItemsConfirmation = false
+                onAddItemsClick()
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PackedBoxAddConfirmationSheet(
+    boxId: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = LightSurface,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        dragHandle = {}
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Primary.copy(alpha = 0.1f), RoundedCornerShape(999.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Outlined.ChevronRight,
+                        imageVector = Icons.Outlined.Inventory2,
                         contentDescription = null,
-                        tint = LightTextSecondary,
-                        modifier = Modifier.size(18.dp)
+                        tint = Primary,
+                        modifier = Modifier.size(24.dp)
                     )
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Add Item to Packed Box?",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = LightTextPrimary
+                    )
+                    Text(
+                        text = "Box $boxId is already packed. Adding another item may mean you need to repack it later.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LightTextSecondary
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, LightBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = LightSurfaceVariant)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = null,
+                            tint = LightTextPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = LightTextPrimary
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Continue",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
