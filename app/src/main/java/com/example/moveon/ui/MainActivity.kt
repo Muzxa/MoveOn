@@ -327,6 +327,10 @@ class MainActivity : ComponentActivity() {
                             onScanBoxClick = {
                                 navController.navigate(Screen.ScanBox.route)
                             }
+                            ,
+                            onTrackDriverClick = {
+                                navController.navigate(Screen.Book.route)
+                            }
                         )
                     }
 

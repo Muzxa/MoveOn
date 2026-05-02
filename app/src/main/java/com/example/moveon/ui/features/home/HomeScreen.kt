@@ -67,6 +67,7 @@ fun HomeScreen(
     onTabSelected: (DashboardTab) -> Unit = {},
     onManageInventoryClick: () -> Unit = {},
     onScanBoxClick: () -> Unit = {},
+    onTrackDriverClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state = viewModel.homeState.value
@@ -128,7 +129,8 @@ fun HomeScreen(
                 state.activeMove != null -> {
                     ActiveMoveCard(
                         move = state.activeMove,
-                        onManageInventoryClick = onManageInventoryClick
+                        onManageInventoryClick = onManageInventoryClick,
+                        onTrackDriverClick = onTrackDriverClick
                     )
                 }
 
@@ -288,7 +290,8 @@ private fun EmptyMoveCard(
 @Composable
 private fun ActiveMoveCard(
     move: ActiveMoveUi,
-    onManageInventoryClick: () -> Unit
+    onManageInventoryClick: () -> Unit,
+    onTrackDriverClick: () -> Unit = {}
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -317,7 +320,7 @@ private fun ActiveMoveCard(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "Move #${move.moveId}",
+                        text = move.statusLabel,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
@@ -384,7 +387,7 @@ private fun ActiveMoveCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     MoveOnPillButton(
                         text = "Track Driver",
-                        onClick = {},
+                        onClick = onTrackDriverClick,
                         modifier = Modifier.weight(1f)
                     )
                     MoveOnPillButton(

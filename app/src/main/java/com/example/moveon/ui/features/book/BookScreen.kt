@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Call
@@ -37,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,12 +47,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.moveon.domain.model.Booking
+import com.example.moveon.domain.model.BookingStatus
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.DualMarkerMapPreview
@@ -66,6 +71,8 @@ import com.example.moveon.ui.theme.LightTextPrimary
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
 import com.example.moveon.util.LocationPermissionHandler
+import com.example.moveon.util.LocationUtils
+import com.google.android.gms.maps.model.LatLng
 import java.text.DecimalFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -145,8 +152,9 @@ fun BookScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     if (createdBooking != null) {
+                        val bookingProvider = state.createdProvider ?: selectedProvider
                         TripDetailsContent(
-                            createdBooking, selectedProvider, state.distanceKmText,
+                            createdBooking, bookingProvider, state.distanceKmText,
                             vehicleLat = state.vehicleLat,
                             vehicleLng = state.vehicleLng
                         )
@@ -332,6 +340,14 @@ fun BookScreen(
         }
     }
 
+    // Show waiting overlay when provider response is pending
+    if (state.isWaitingForProviderResponse && createdBooking != null) {
+        BackHandler {
+            viewModel.dismissWaitingForProviderResponse()
+        }
+        WaitingForProviderOverlay()
+    }
+
     if (state.showOtpDialog && createdBooking != null) {
         Dialog(onDismissRequest = viewModel::dismissOtpDialog) {
             Card(
@@ -399,10 +415,90 @@ private fun TripDetailsContent(
     vehicleLat: Double? = null,
     vehicleLng: Double? = null
 ) {
+    val context = LocalContext.current
     val scheduleLabel = formatEpochToTime(booking.scheduledTime)
     val completionLabel = formatEpochToTime(booking.scheduledTime + estimateDurationMinutes(distanceKmText) * 60_000L)
     val providerName = provider?.establishmentName?.ifBlank { "Assigned Provider" } ?: "Assigned Provider"
     val providerInitials = providerName.split(" ").mapNotNull { it.firstOrNull()?.uppercaseChar()?.toString() }.take(2).joinToString("").ifBlank { "MO" }
+    val vehiclePosition = if (vehicleLat != null && vehicleLng != null) {
+        LatLng(vehicleLat, vehicleLng)
+    } else null
+
+    val routeOrigin = when {
+        vehiclePosition != null -> vehiclePosition
+        provider != null && provider.businessLat != 0.0 -> LatLng(provider.businessLat, provider.businessLng)
+        else -> LatLng(booking.pickupLat, booking.pickupLng)
+    }
+
+    var routeToPickupPoints by remember(booking.id, routeOrigin) { mutableStateOf<List<LatLng>>(emptyList()) }
+    var routeToDropoffPoints by remember(booking.id) { mutableStateOf<List<LatLng>>(emptyList()) }
+    var arrivalAtLabel by remember { mutableStateOf<String?>(null) }
+    var completionAtLabel by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(routeOrigin, booking.pickupLat, booking.dropOffLat, booking.status, vehicleLat, vehicleLng) {
+        val toPickupOverview = com.example.moveon.util.LocationUtils.fetchRouteOverview(
+            context,
+            routeOrigin,
+            LatLng(booking.pickupLat, booking.pickupLng)
+        )
+        routeToPickupPoints = if (booking.status == BookingStatus.ACTIVE) {
+            emptyList()
+        } else {
+            toPickupOverview.points
+        }
+
+        val pickupToDropOverview = com.example.moveon.util.LocationUtils.fetchRouteOverview(
+            context,
+            LatLng(booking.pickupLat, booking.pickupLng),
+            LatLng(booking.dropOffLat, booking.dropOffLng)
+        )
+
+        val activeToDropOverview = com.example.moveon.util.LocationUtils.fetchRouteOverview(
+            context,
+            routeOrigin,
+            LatLng(booking.dropOffLat, booking.dropOffLng)
+        )
+
+        routeToDropoffPoints = if (booking.status == BookingStatus.ACTIVE) {
+            activeToDropOverview.points
+        } else {
+            pickupToDropOverview.points
+        }
+
+        val activeLegDuration = if (booking.status == BookingStatus.ACTIVE) {
+            activeToDropOverview.durationSeconds
+        } else {
+            toPickupOverview.durationSeconds
+        }
+
+        val trafficBufferSeconds = activeLegDuration
+            ?.let { estimateTrafficBufferMinutes(it) * 60L }
+            ?: 0L
+
+        arrivalAtLabel = activeLegDuration?.let { durSecs ->
+            val arrivalMillis = System.currentTimeMillis() + (durSecs + trafficBufferSeconds) * 1000L
+            formatEpochToTime(arrivalMillis)
+        }
+
+        completionAtLabel = when {
+            booking.status == BookingStatus.ACTIVE && activeToDropOverview.durationSeconds != null -> {
+                val arrivalMillis = System.currentTimeMillis() +
+                    (activeToDropOverview.durationSeconds + trafficBufferSeconds) * 1000L
+                formatEpochToTime(arrivalMillis)
+            }
+            toPickupOverview.durationSeconds != null && pickupToDropOverview.durationSeconds != null -> {
+                val totalSecs = toPickupOverview.durationSeconds + pickupToDropOverview.durationSeconds + trafficBufferSeconds
+                val arrivalMillis = System.currentTimeMillis() + totalSecs * 1000L
+                formatEpochToTime(arrivalMillis)
+            }
+            pickupToDropOverview.durationSeconds != null -> {
+                val arrivalMillis = System.currentTimeMillis() +
+                    (pickupToDropOverview.durationSeconds + trafficBufferSeconds) * 1000L
+                formatEpochToTime(arrivalMillis)
+            }
+            else -> null
+        }
+    }
 
     val hasCoordinates = booking.pickupLat != 0.0 && booking.dropOffLat != 0.0
 
@@ -414,7 +510,9 @@ private fun TripDetailsContent(
             dropOffLat = booking.dropOffLat,
             dropOffLng = booking.dropOffLng,
             vehicleLat = vehicleLat,
-            vehicleLng = vehicleLng
+            vehicleLng = vehicleLng,
+            routeToPickupPoints = routeToPickupPoints,
+            routeToDropoffPoints = routeToDropoffPoints
         )
     } else {
         Box(
@@ -438,8 +536,9 @@ private fun TripDetailsContent(
                 Icon(imageVector = Icons.Outlined.AccessTime, contentDescription = null, tint = Color.White)
             }
             Column {
-                Text(text = "Arriving in", style = MaterialTheme.typography.titleMedium, color = LightTextSecondary)
-                Text(text = "40-45 mins", style = MaterialTheme.typography.headlineLarge, color = Primary)
+                val etaText = arrivalAtLabel ?: estimateEtaLabel(booking.scheduledTime)
+                Text(text = "Arriving at", style = MaterialTheme.typography.titleMedium, color = LightTextSecondary)
+                Text(text = etaText, style = MaterialTheme.typography.headlineLarge, color = Primary)
             }
         }
     }
@@ -459,14 +558,28 @@ private fun TripDetailsContent(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CircleIconButton(icon = Icons.Outlined.Call)
-                CircleIconButton(icon = Icons.Outlined.ChatBubbleOutline)
+                val providerPhone = provider?.phoneNumber ?: ""
+                CircleIconButton(icon = Icons.Outlined.Call, onClick = {
+                    if (providerPhone.isNotBlank()) {
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + providerPhone))
+                        if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    }
+                })
+
+                CircleIconButton(icon = Icons.Outlined.ChatBubbleOutline, onClick = {
+                    if (providerPhone.isNotBlank()) {
+                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + providerPhone))
+                        if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    }
+                })
             }
         }
     }
 
     TripInfoCard(title = "Trip Information", rows = listOf(
-        "Move ID" to booking.id, "Start Time" to scheduleLabel, "Est. Completion" to completionLabel,
+        "Start Time" to scheduleLabel, "Est. Completion" to (completionAtLabel ?: completionLabel),
         "Total Distance" to "${distanceKmText.ifBlank { "-" }} km"
     ))
 
@@ -476,9 +589,13 @@ private fun TripDetailsContent(
 }
 
 @Composable
-private fun CircleIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun CircleIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit = {}) {
     Box(
-        modifier = Modifier.size(34.dp).background(Color(0xFFF5F5F5), CircleShape).border(1.dp, LightBorder, CircleShape),
+        modifier = Modifier
+            .size(34.dp)
+            .background(Color(0xFFF5F5F5), CircleShape)
+            .border(1.dp, LightBorder, CircleShape)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(imageVector = icon, contentDescription = null, tint = LightTextSecondary, modifier = Modifier.size(16.dp)) }
 }
@@ -533,9 +650,28 @@ private fun estimateDurationMinutes(distanceKmText: String): Long {
     return (distance * 5.0).coerceIn(40.0, 360.0).toLong()
 }
 
+private fun estimateTrafficBufferMinutes(routeDurationSeconds: Long): Long {
+    return when {
+        routeDurationSeconds <= 10 * 60L -> 2L
+        routeDurationSeconds <= 30 * 60L -> 3L
+        routeDurationSeconds <= 60 * 60L -> 4L
+        else -> 5L
+    }
+}
+
 private fun formatEpochToTime(millis: Long): String {
     if (millis <= 0L) return "-"
     return Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("hh:mm a", Locale.US))
+}
+
+private fun estimateEtaLabel(scheduledTime: Long): String {
+    if (scheduledTime <= 0L) return "ETA unavailable"
+    val diffMinutes = java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(scheduledTime - System.currentTimeMillis())
+    return when {
+        diffMinutes <= 0L -> "Arriving soon"
+        diffMinutes < 60L -> "${diffMinutes} mins"
+        else -> "${diffMinutes / 60}h ${diffMinutes % 60}m"
+    }
 }
 
 private data class PriceSummary(val baseRate: Double, val distanceCharge: Double, val serviceFee: Double) {

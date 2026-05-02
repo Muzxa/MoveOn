@@ -7,10 +7,13 @@ import com.example.moveon.data.remote.FirebaseService
 import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
+import com.example.moveon.domain.model.TripActorType
+import com.example.moveon.domain.model.TripLocation
 import com.example.moveon.domain.model.Vehicle
 import com.example.moveon.domain.repository.LogisticsRepository
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class LogisticsRepositoryImpl @Inject constructor(
@@ -24,7 +27,13 @@ class LogisticsRepositoryImpl @Inject constructor(
 
     override suspend fun getProviderById(providerId: String): Result<Provider?> {
         return runCatching {
-            firebaseService.getProviderById(providerId)?.toDomainModel()
+            val provider = firebaseService.getProviderById(providerId)?.toDomainModel()
+            if (provider != null) {
+                // attempt to fetch provider phone from users collection
+                val userDto = runCatching { firebaseService.getUserById(providerId) }.getOrNull()
+                val phone = userDto?.phone_number ?: ""
+                provider.copy(phoneNumber = phone)
+            } else null
         }
     }
 
@@ -80,8 +89,8 @@ class LogisticsRepositoryImpl @Inject constructor(
         firebaseService.updateBookingStatus(booking.id, "Confirmed")
     }
 
-    override suspend fun confirmBookingById(bookingId: String) {
-        firebaseService.updateBookingStatus(bookingId, "Confirmed")
+    override suspend fun confirmBookingById(bookingId: String, providerId: String) {
+        firebaseService.updateBookingStatus(bookingId, "Confirmed", providerId)
     }
 
     override suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean {
@@ -104,7 +113,48 @@ class LogisticsRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun publishTripLocation(
+        bookingId: String,
+        providerId: String,
+        userId: String,
+        actorId: String,
+        actorType: TripActorType,
+        lat: Double,
+        lng: Double,
+        vehicleId: String?,
+        speedMps: Double?,
+        headingDeg: Double?,
+        timestamp: Long
+    ) {
+        firebaseService.publishTripLocation(
+            bookingId = bookingId,
+            providerId = providerId,
+            userId = userId,
+            actorId = actorId,
+            actorType = actorType,
+            lat = lat,
+            lng = lng,
+            vehicleId = vehicleId,
+            speedMps = speedMps,
+            headingDeg = headingDeg,
+            timestamp = timestamp
+        )
+    }
+
+    override fun observeTripLocation(bookingId: String): Flow<TripLocation> {
+        return firebaseService.observeTripLocation(bookingId)
+    }
+
     override fun trackVehicleLocation(vehicleId: String): Flow<LatLng> {
         return firebaseService.trackVehicleLocation(vehicleId)
+    }
+
+    override fun observeBookingStatus(bookingId: String): Flow<BookingStatus> {
+        return firebaseService.observeBookingStatus(bookingId)
+    }
+
+    override fun observeBookingsForProvider(providerId: String): Flow<List<Booking>> {
+        return firebaseService.observeBookingsForProvider(providerId)
+            .map { bookings -> bookings.map { it.toDomainModel() } }
     }
 }

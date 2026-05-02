@@ -70,6 +70,7 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.Polyline
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -650,6 +651,8 @@ fun LiveTrackingMap(
     dropOffLng: Double,
     vehicleLat: Double?,
     vehicleLng: Double?,
+    routeToPickupPoints: List<LatLng>? = null,
+    routeToDropoffPoints: List<LatLng>? = null,
     modifier: Modifier = Modifier
 ) {
     val vehiclePosition = if (vehicleLat != null && vehicleLng != null) {
@@ -660,13 +663,6 @@ fun LiveTrackingMap(
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(center, 13f)
-    }
-
-    // Animate camera to follow vehicle
-    LaunchedEffect(vehicleLat, vehicleLng) {
-        if (vehiclePosition != null) {
-            cameraPositionState.position = CameraPosition.fromLatLngZoom(vehiclePosition, 14f)
-        }
     }
 
     Card(
@@ -684,6 +680,10 @@ fun LiveTrackingMap(
                 uiSettings = MapUiSettings(
                     zoomControlsEnabled = true,
                     compassEnabled = true,
+                    scrollGesturesEnabled = true,
+                    zoomGesturesEnabled = true,
+                    rotationGesturesEnabled = true,
+                    tiltGesturesEnabled = true,
                     mapToolbarEnabled = false
                 )
             ) {
@@ -697,6 +697,32 @@ fun LiveTrackingMap(
                 Marker(
                     state = MarkerState(position = LatLng(dropOffLat, dropOffLng)),
                     title = "Drop-off"
+                )
+
+                val mapRouteToPickup = when {
+                    routeToPickupPoints != null && routeToPickupPoints.size >= 2 -> routeToPickupPoints
+                    else -> null
+                }
+
+                val mapRouteToDropoff = when {
+                    routeToDropoffPoints != null && routeToDropoffPoints.size >= 2 -> routeToDropoffPoints
+                    else -> listOf(LatLng(pickupLat, pickupLng), LatLng(dropOffLat, dropOffLng))
+                }
+
+                // Draw provider/vehicle -> pickup route (if available) as a subtle color
+                if (mapRouteToPickup != null) {
+                    Polyline(
+                        points = mapRouteToPickup,
+                        color = Color(0xFF9FC4E9),
+                        width = 6f
+                    )
+                }
+
+                // Draw pickup -> dropoff route (primary route)
+                Polyline(
+                    points = mapRouteToDropoff,
+                    color = Primary,
+                    width = 6f
                 )
 
                 // Vehicle marker (moving)

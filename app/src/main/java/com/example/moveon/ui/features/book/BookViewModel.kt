@@ -1,5 +1,6 @@
 package com.example.moveon.ui.features.book
 
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -12,6 +13,7 @@ import com.example.moveon.domain.repository.AuthRepository
 import com.example.moveon.domain.repository.LogisticsRepository
 import com.example.moveon.util.LocationUtils
 import com.google.android.gms.maps.model.LatLng
+import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,7 +32,8 @@ import javax.inject.Inject
 @HiltViewModel
 class BookViewModel @Inject constructor(
     authRepository: AuthRepository,
-    private val logisticsRepository: LogisticsRepository
+    private val logisticsRepository: LogisticsRepository,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val dateFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.US)
@@ -39,7 +42,7 @@ class BookViewModel @Inject constructor(
     val currentUser: StateFlow<User?> = authRepository.currentUser
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Eagerly,
             initialValue = null
         )
 
@@ -47,9 +50,46 @@ class BookViewModel @Inject constructor(
     val state: State<BookUiState> = _state
 
     private var vehicleTrackingJob: Job? = null
+    private var bookingStatusListenerJob: Job? = null
 
     init {
+        // Try to restore form state from SavedStateHandle (in case ViewModel was recreated)
+        restoreFormState()
         refreshProviders()
+        loadCurrentBookingForUser()
+        Log.d("BookViewModel", "[INIT] BookViewModel initialized")
+    }
+
+    private fun loadCurrentBookingForUser() {
+        viewModelScope.launch {
+            currentUser.collect { user ->
+                if (user == null) return@collect
+                try {
+                    val current = logisticsRepository.getCurrentBookingForUser(user.id)
+                    current.onSuccess { booking ->
+                        if (booking != null) {
+                            Log.d("BookViewModel", "[INIT] Found active booking for user ${user.id}: ${booking.id}")
+                            // fetch provider details for nicer UI labels
+                            val provider = runCatching { logisticsRepository.getProviderById(booking.providerId) }
+                                .getOrNull()?.getOrNull()
+
+                            _state.value = _state.value.copy(
+                                createdBooking = booking,
+                                createdProvider = provider,
+                                isWaitingForProviderResponse = booking.status == BookingStatus.SEARCHING
+                            )
+                            // start listeners for booking
+                            startBookingStatusListener(booking.id)
+                            startVehicleTracking(booking)
+                        }
+                    }.onFailure { err ->
+                        Log.e("BookViewModel", "[INIT] Failed to load current booking for user ${user.id}: ${err.message}", err)
+                    }
+                } catch (e: Exception) {
+                    Log.e("BookViewModel", "[INIT] Exception while loading current booking: ${e.message}", e)
+                }
+            }
+        }
     }
 
     fun refreshProviders() {
@@ -84,6 +124,7 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+        saveFormState()
     }
 
     fun onProviderSelected(providerId: String) {
@@ -92,6 +133,7 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+        saveFormState()
     }
 
     fun onPickupAddressChanged(value: String) {
@@ -100,6 +142,7 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+        saveFormState()
     }
 
     fun onDropOffAddressChanged(value: String) {
@@ -108,6 +151,7 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+        saveFormState()
     }
 
     fun onPickupLocationResolved(lat: Double, lng: Double, address: String) {
@@ -119,6 +163,7 @@ class BookViewModel @Inject constructor(
             bookingError = null
         )
         recalculateDistance()
+        saveFormState()
     }
 
     fun onDropOffLocationResolved(lat: Double, lng: Double, address: String) {
@@ -130,6 +175,7 @@ class BookViewModel @Inject constructor(
             bookingError = null
         )
         recalculateDistance()
+        saveFormState()
     }
 
     private fun recalculateDistance() {
@@ -156,6 +202,7 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+        saveFormState()
     }
 
     fun onDatePicked(dateMillis: Long) {
@@ -169,6 +216,7 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+        saveFormState()
     }
 
     fun onTimePicked(hour: Int, minute: Int) {
@@ -180,6 +228,7 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+        saveFormState()
     }
 
     fun scheduledDateTimeMillis(): Long? {
@@ -213,6 +262,7 @@ class BookViewModel @Inject constructor(
             currentStep = stateSnapshot.currentStep + 1,
             formError = null
         )
+        saveFormState()
     }
 
     fun onPrimaryAction() {
@@ -231,9 +281,22 @@ class BookViewModel @Inject constructor(
     }
 
     fun startNewBooking() {
-        vehicleTrackingJob?.cancel()
-        vehicleTrackingJob = null
+        clearBookingTrackingJobs()
         resetForNewBooking()
+    }
+
+    fun dismissWaitingForProviderResponse() {
+        clearBookingTrackingJobs()
+        _state.value = _state.value.copy(
+            createdBooking = null,
+            showOtpDialog = false,
+            isWaitingForProviderResponse = false,
+            bookingStatusError = null,
+            bookingError = null,
+            isSubmittingBooking = false,
+            vehicleLat = null,
+            vehicleLng = null
+        )
     }
 
     fun onStepBack() {
@@ -282,29 +345,35 @@ class BookViewModel @Inject constructor(
 
         val userId = currentUser.value?.id
         if (userId.isNullOrBlank()) {
-            _state.value = snapshot.copy(bookingError = "Please login again to continue booking.")
+            Log.e("BookViewModel", "[BOOKING_SUBMIT] User ID is null or blank")
+            _state.value = snapshot.copy(bookingError = "Unable to process booking. Please try again.")
             return
         }
 
+
         val selectedProvider = snapshot.providers.firstOrNull { it.id == snapshot.selectedProviderId }
         if (selectedProvider == null) {
+            Log.e("BookViewModel", "[BOOKING_SUBMIT] Selected provider not found: ${snapshot.selectedProviderId}")
             _state.value = snapshot.copy(bookingError = "Please select a provider before confirming.")
             return
         }
 
         val distanceKm = snapshot.distanceKmText.toDoubleOrNull()
         if (distanceKm == null || distanceKm <= 0.0) {
+            Log.e("BookViewModel", "[BOOKING_SUBMIT] Invalid distance: ${snapshot.distanceKmText}")
             _state.value = snapshot.copy(bookingError = "Please enter a valid distance in kilometers.")
             return
         }
 
         val scheduledAt = scheduledDateTimeMillis()
         if (scheduledAt == null) {
+            Log.e("BookViewModel", "[BOOKING_SUBMIT] Scheduled time is null")
             _state.value = snapshot.copy(bookingError = "Please pick both date and time.")
             return
         }
 
         if (scheduledAt <= System.currentTimeMillis()) {
+            Log.e("BookViewModel", "[BOOKING_SUBMIT] Booking time is in the past")
             _state.value = snapshot.copy(bookingError = "Booking time must be in the future.")
             return
         }
@@ -330,24 +399,55 @@ class BookViewModel @Inject constructor(
             rating = 0f
         )
 
+        Log.d("BookViewModel", "[BOOKING_SUBMIT] Creating booking - User: $userId, Provider: ${selectedProvider.id}, Distance: ${distanceKm}km, Fare: $fare")
+
         _state.value = snapshot.copy(
             isSubmittingBooking = true,
             bookingError = null
         )
 
         viewModelScope.launch {
+            // Double-check server-side current booking for user to prevent duplicates
+            try {
+                val existingResult = logisticsRepository.getCurrentBookingForUser(userId)
+                existingResult.onSuccess { existingBooking ->
+                    if (existingBooking != null && existingBooking.status != BookingStatus.COMPLETED) {
+                        Log.w("BookViewModel", "[BOOKING_SUBMIT] Aborting - user $userId already has active booking ${existingBooking.id}")
+                        _state.value = _state.value.copy(
+                            isSubmittingBooking = false,
+                            bookingError = "You already have an active booking."
+                        )
+                        return@launch
+                    }
+                }.onFailure { err ->
+                    Log.w("BookViewModel", "[BOOKING_SUBMIT] Could not verify existing booking: ${err.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("BookViewModel", "[BOOKING_SUBMIT] Exception checking existing booking: ${e.message}", e)
+            }
+
             logisticsRepository.createBooking(bookingToCreate)
                 .onSuccess { createdBooking ->
+                    Log.d("BookViewModel", "[BOOKING_SUBMIT] Booking created successfully: ${createdBooking.id}, waiting for provider response")
+                    // fetch provider details for display
+                    val provider = runCatching { logisticsRepository.getProviderById(createdBooking.providerId) }
+                        .getOrNull()?.getOrNull()
+
                     _state.value = _state.value.copy(
                         isSubmittingBooking = false,
                         bookingError = null,
                         createdBooking = createdBooking,
-                        showOtpDialog = true
+                        createdProvider = provider,
+                        isWaitingForProviderResponse = true,
+                        showOtpDialog = false
                     )
+                    // Start listening to booking status changes
+                    startBookingStatusListener(createdBooking.id)
                     // Start vehicle tracking if booking has vehicles
                     startVehicleTracking(createdBooking)
                 }
                 .onFailure { throwable ->
+                    Log.e("BookViewModel", "[BOOKING_SUBMIT] Booking creation failed: ${throwable.message}", throwable)
                     _state.value = _state.value.copy(
                         isSubmittingBooking = false,
                         bookingError = throwable.message ?: "Could not confirm booking right now."
@@ -358,19 +458,85 @@ class BookViewModel @Inject constructor(
 
     private fun startVehicleTracking(booking: Booking) {
         val vehicleId = booking.vehicles.firstOrNull()?.vehicleId
-        if (vehicleId.isNullOrBlank()) return
+        Log.d("BookViewModel", "[TRACKING_START] Starting vehicle tracking for booking: ${booking.id}, vehicleId: $vehicleId")
 
         vehicleTrackingJob?.cancel()
         vehicleTrackingJob = viewModelScope.launch {
-            logisticsRepository.trackVehicleLocation(vehicleId)
-                .catch { /* silently handle tracking errors */ }
-                .collect { latLng ->
+            try {
+                Log.d("BookViewModel", "[TRIP_LOCATION_SUBSCRIBE] Subscribing to trip location updates for booking: ${booking.id}")
+                logisticsRepository.observeTripLocation(booking.id)
+                    .collect { tripLocation ->
+                        Log.d("BookViewModel", "[TRIP_LOCATION_COLLECTED] Received location update - Lat: ${tripLocation.lat}, Lng: ${tripLocation.lng}, ActorId: ${tripLocation.actorId}")
+                        _state.value = _state.value.copy(
+                            vehicleLat = tripLocation.lat,
+                            vehicleLng = tripLocation.lng
+                        )
+                    }
+            } catch (ex: Exception) {
+                Log.e("BookViewModel", "[TRIP_LOCATION_ERROR] Failed to observe trip location for ${booking.id}: ${ex.message}", ex)
+                if (!vehicleId.isNullOrBlank()) {
+                    Log.d("BookViewModel", "[FALLBACK_TRACKING] Falling back to legacy vehicle location tracking for vehicleId: $vehicleId")
+                    logisticsRepository.trackVehicleLocation(vehicleId)
+                        .catch { error ->
+                            Log.e("BookViewModel", "[FALLBACK_ERROR] Vehicle tracking failed: ${error.message}", error as Throwable)
+                        }
+                        .collect { latLng ->
+                            Log.d("BookViewModel", "[VEHICLE_LOCATION] Received fallback location - Lat: ${latLng.latitude}, Lng: ${latLng.longitude}")
+                            _state.value = _state.value.copy(
+                                vehicleLat = latLng.latitude,
+                                vehicleLng = latLng.longitude
+                            )
+                        }
+                } else {
+                    Log.w("BookViewModel", "[NO_VEHICLE] Booking has no vehicles assigned")
+                }
+            }
+        }
+    }
+
+    private fun startBookingStatusListener(bookingId: String) {
+        bookingStatusListenerJob?.cancel()
+        Log.d("BookViewModel", "[STATUS_LISTENER] Setting up status listener for booking: $bookingId")
+        bookingStatusListenerJob = viewModelScope.launch {
+            logisticsRepository.observeBookingStatus(bookingId)
+                .catch { error ->
+                    Log.e("BookViewModel", "[STATUS_LISTENER] Error observing booking status for $bookingId: ${error.message}", error)
+                }
+                .collect { status ->
+                    Log.d("BookViewModel", "[STATUS_LISTENER] Booking $bookingId status changed to: $status")
                     _state.value = _state.value.copy(
-                        vehicleLat = latLng.latitude,
-                        vehicleLng = latLng.longitude
+                        bookingStatusError = null
                     )
+                    when (status) {
+                        BookingStatus.CONFIRMED -> {
+                            // Provider has accepted the booking
+                            Log.d("BookViewModel", "[STATUS_LISTENER] Provider confirmed booking $bookingId")
+                            _state.value = _state.value.copy(
+                                isWaitingForProviderResponse = false,
+                                showOtpDialog = true
+                            )
+                        }
+                        BookingStatus.ACTIVE -> {
+                            // Trip has started
+                            Log.d("BookViewModel", "[STATUS_LISTENER] Booking $bookingId is now ACTIVE")
+                            _state.value = _state.value.copy(
+                                isWaitingForProviderResponse = false
+                            )
+                        }
+                        else -> {
+                            // SEARCHING or COMPLETED - keep current state
+                            Log.d("BookViewModel", "[STATUS_LISTENER] Booking $bookingId still in ${status.name}")
+                        }
+                    }
                 }
         }
+    }
+
+    private fun clearBookingTrackingJobs() {
+        vehicleTrackingJob?.cancel()
+        vehicleTrackingJob = null
+        bookingStatusListenerJob?.cancel()
+        bookingStatusListenerJob = null
     }
 
     private fun resetForNewBooking() {
@@ -442,6 +608,74 @@ class BookViewModel @Inject constructor(
         return code.toString()
     }
 
+    private fun saveFormState() {
+        val snapshot = _state.value
+        try {
+            savedStateHandle["currentStep"] = snapshot.currentStep
+            savedStateHandle["selectedServiceId"] = snapshot.selectedServiceId
+            savedStateHandle["selectedProviderId"] = snapshot.selectedProviderId
+            savedStateHandle["pickupAddress"] = snapshot.pickupAddress
+            savedStateHandle["dropOffAddress"] = snapshot.dropOffAddress
+            savedStateHandle["pickupLat"] = snapshot.pickupLat
+            savedStateHandle["pickupLng"] = snapshot.pickupLng
+            savedStateHandle["dropOffLat"] = snapshot.dropOffLat
+            savedStateHandle["dropOffLng"] = snapshot.dropOffLng
+            savedStateHandle["distanceKmText"] = snapshot.distanceKmText
+            savedStateHandle["selectedDateMillis"] = snapshot.selectedDateMillis
+            savedStateHandle["selectedHour"] = snapshot.selectedHour
+            savedStateHandle["selectedMinute"] = snapshot.selectedMinute
+            savedStateHandle["scheduledDateText"] = snapshot.scheduledDateText
+            savedStateHandle["scheduledTimeText"] = snapshot.scheduledTimeText
+            Log.d("BookViewModel", "[SAVE_STATE] Form state saved to SavedStateHandle")
+        } catch (e: Exception) {
+            Log.e("BookViewModel", "[SAVE_STATE] Failed to save form state: ${e.message}", e)
+        }
+    }
+
+    private fun restoreFormState() {
+        try {
+            val currentStep = savedStateHandle.get<Int>("currentStep") ?: 1
+            val selectedServiceId = savedStateHandle.get<String>("selectedServiceId") ?: ""
+            val selectedProviderId = savedStateHandle.get<String>("selectedProviderId") ?: ""
+            val pickupAddress = savedStateHandle.get<String>("pickupAddress") ?: ""
+            val dropOffAddress = savedStateHandle.get<String>("dropOffAddress") ?: ""
+            val pickupLat = savedStateHandle.get<Double>("pickupLat")
+            val pickupLng = savedStateHandle.get<Double>("pickupLng")
+            val dropOffLat = savedStateHandle.get<Double>("dropOffLat")
+            val dropOffLng = savedStateHandle.get<Double>("dropOffLng")
+            val distanceKmText = savedStateHandle.get<String>("distanceKmText") ?: ""
+            val selectedDateMillis = savedStateHandle.get<Long>("selectedDateMillis")
+            val selectedHour = savedStateHandle.get<Int>("selectedHour")
+            val selectedMinute = savedStateHandle.get<Int>("selectedMinute")
+            val scheduledDateText = savedStateHandle.get<String>("scheduledDateText") ?: ""
+            val scheduledTimeText = savedStateHandle.get<String>("scheduledTimeText") ?: ""
+
+            if (selectedServiceId.isNotEmpty() || selectedProviderId.isNotEmpty() || pickupAddress.isNotEmpty()) {
+                _state.value = _state.value.copy(
+                    currentStep = currentStep,
+                    selectedServiceId = selectedServiceId,
+                    selectedProviderId = selectedProviderId,
+                    pickupAddress = pickupAddress,
+                    dropOffAddress = dropOffAddress,
+                    pickupLat = pickupLat,
+                    pickupLng = pickupLng,
+                    dropOffLat = dropOffLat,
+                    dropOffLng = dropOffLng,
+                    distanceKmText = distanceKmText,
+                    selectedDateMillis = selectedDateMillis,
+                    selectedHour = selectedHour,
+                    selectedMinute = selectedMinute,
+                    scheduledDateText = scheduledDateText,
+                    scheduledTimeText = scheduledTimeText,
+                    isLoadingProviders = true
+                )
+                Log.d("BookViewModel", "[RESTORE_STATE] Form state restored from SavedStateHandle - Step: $currentStep, Service: $selectedServiceId, Provider: $selectedProviderId")
+            }
+        } catch (e: Exception) {
+            Log.e("BookViewModel", "[RESTORE_STATE] Failed to restore form state: ${e.message}", e)
+        }
+    }
+
     companion object {
         const val TOTAL_STEPS = 3
     }
@@ -470,7 +704,10 @@ data class BookUiState(
     val isSubmittingBooking: Boolean = false,
     val bookingError: String? = null,
     val createdBooking: Booking? = null,
+    val createdProvider: Provider? = null,
     val showOtpDialog: Boolean = false,
     val vehicleLat: Double? = null,
-    val vehicleLng: Double? = null
+    val vehicleLng: Double? = null,
+    val isWaitingForProviderResponse: Boolean = false,
+    val bookingStatusError: String? = null
 )

@@ -157,7 +157,8 @@ fun ProviderDto.toDomainModel(): Provider = Provider(
     baseRate = this.base_rate,
     ratePerKm = this.rate_per_km,
     businessLat = this.business_lat,
-    businessLng = this.business_lng
+    businessLng = this.business_lng,
+    phoneNumber = ""
 )
 
 fun Provider.toDto(): ProviderDto = ProviderDto(
