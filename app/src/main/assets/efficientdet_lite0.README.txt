@@ -1,0 +1,11 @@
+You provided a model attachment named `efficientdet_lite0.tflite`.
+
+Please place the binary model file at:
+
+app/src/main/assets/efficientdet_lite0.tflite
+
+You can copy the attached model file into that path (binary). After placing the file, re-run:
+
+./gradlew :app:assembleDebug
+
+If you want, I can attempt to write the model file into the repo if you confirm I should create a binary asset here (I need the full binary data).
