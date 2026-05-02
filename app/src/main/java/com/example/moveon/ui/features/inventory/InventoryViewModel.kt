@@ -37,6 +37,7 @@ class InventoryViewModel @Inject constructor(
 
     init {
         observeBoxes()
+        observeItemCounts()
     }
 
     fun onEvent(event: InventoryEvent) {
@@ -226,6 +227,22 @@ class InventoryViewModel @Inject constructor(
                             )
                         }
                     )
+                }
+        }
+    }
+
+    private fun observeItemCounts() {
+        viewModelScope.launch {
+            inventoryRepository.getTotalItemsCount()
+                .collect { count ->
+                    _uiState.value = _uiState.value.copy(totalItemsCount = count)
+                }
+        }
+
+        viewModelScope.launch {
+            inventoryRepository.getTotalFragileItemsCount()
+                .collect { count ->
+                    _uiState.value = _uiState.value.copy(totalFragileItemsCount = count)
                 }
         }
     }
@@ -490,7 +507,9 @@ data class InventoryUiState(
     val selectedColorHex: String = InventoryViewModel.DEFAULT_COLOR_HEX,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
-    val storedBoxes: List<StoredInventoryBox> = emptyList()
+    val storedBoxes: List<StoredInventoryBox> = emptyList(),
+    val totalItemsCount: Int = 0,
+    val totalFragileItemsCount: Int = 0
 )
 
 data class StoredInventoryBox(

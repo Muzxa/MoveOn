@@ -34,6 +34,9 @@ class AuthFlowViewModel : ViewModel() {
     var cnicUploaded by mutableStateOf(false)
     var cnicUploadLabel by mutableStateOf("")
 
+    var businessLat by mutableStateOf<Double?>(null)
+    var businessLng by mutableStateOf<Double?>(null)
+
     fun splitFirstAndLastName(): Pair<String, String> {
         val parts = fullName.trim().split(" ").filter { it.isNotBlank() }
         if (parts.isEmpty()) return "" to ""
@@ -68,6 +71,9 @@ class AuthFlowViewModel : ViewModel() {
 
         cnicUploaded = false
         cnicUploadLabel = ""
+
+        businessLat = null
+        businessLng = null
     }
 }
 

@@ -10,9 +10,13 @@ import com.example.moveon.domain.model.Provider
 import com.example.moveon.domain.model.User
 import com.example.moveon.domain.repository.AuthRepository
 import com.example.moveon.domain.repository.LogisticsRepository
+import com.example.moveon.util.LocationUtils
+import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -41,6 +45,8 @@ class BookViewModel @Inject constructor(
 
     private val _state = mutableStateOf(BookUiState(isLoadingProviders = true))
     val state: State<BookUiState> = _state
+
+    private var vehicleTrackingJob: Job? = null
 
     init {
         refreshProviders()
@@ -102,6 +108,45 @@ class BookViewModel @Inject constructor(
             formError = null,
             bookingError = null
         )
+    }
+
+    fun onPickupLocationResolved(lat: Double, lng: Double, address: String) {
+        _state.value = _state.value.copy(
+            pickupAddress = address,
+            pickupLat = lat,
+            pickupLng = lng,
+            formError = null,
+            bookingError = null
+        )
+        recalculateDistance()
+    }
+
+    fun onDropOffLocationResolved(lat: Double, lng: Double, address: String) {
+        _state.value = _state.value.copy(
+            dropOffAddress = address,
+            dropOffLat = lat,
+            dropOffLng = lng,
+            formError = null,
+            bookingError = null
+        )
+        recalculateDistance()
+    }
+
+    private fun recalculateDistance() {
+        val snap = _state.value
+        val pLat = snap.pickupLat
+        val pLng = snap.pickupLng
+        val dLat = snap.dropOffLat
+        val dLng = snap.dropOffLng
+        if (pLat != null && pLng != null && dLat != null && dLng != null) {
+            val distanceKm = LocationUtils.calculateDistanceKm(
+                LatLng(pLat, pLng),
+                LatLng(dLat, dLng)
+            )
+            _state.value = _state.value.copy(
+                distanceKmText = String.format(Locale.US, "%.1f", distanceKm)
+            )
+        }
     }
 
     fun onDistanceKmChanged(value: String) {
@@ -186,6 +231,8 @@ class BookViewModel @Inject constructor(
     }
 
     fun startNewBooking() {
+        vehicleTrackingJob?.cancel()
+        vehicleTrackingJob = null
         resetForNewBooking()
     }
 
@@ -271,6 +318,10 @@ class BookViewModel @Inject constructor(
             status = BookingStatus.SEARCHING,
             pickupAddress = snapshot.pickupAddress.trim(),
             dropOffAddress = snapshot.dropOffAddress.trim(),
+            pickupLat = snapshot.pickupLat ?: 0.0,
+            pickupLng = snapshot.pickupLng ?: 0.0,
+            dropOffLat = snapshot.dropOffLat ?: 0.0,
+            dropOffLng = snapshot.dropOffLng ?: 0.0,
             totalFare = fare,
             otp = otp,
             isOtpVerified = false,
@@ -293,11 +344,30 @@ class BookViewModel @Inject constructor(
                         createdBooking = createdBooking,
                         showOtpDialog = true
                     )
+                    // Start vehicle tracking if booking has vehicles
+                    startVehicleTracking(createdBooking)
                 }
                 .onFailure { throwable ->
                     _state.value = _state.value.copy(
                         isSubmittingBooking = false,
                         bookingError = throwable.message ?: "Could not confirm booking right now."
+                    )
+                }
+        }
+    }
+
+    private fun startVehicleTracking(booking: Booking) {
+        val vehicleId = booking.vehicles.firstOrNull()?.vehicleId
+        if (vehicleId.isNullOrBlank()) return
+
+        vehicleTrackingJob?.cancel()
+        vehicleTrackingJob = viewModelScope.launch {
+            logisticsRepository.trackVehicleLocation(vehicleId)
+                .catch { /* silently handle tracking errors */ }
+                .collect { latLng ->
+                    _state.value = _state.value.copy(
+                        vehicleLat = latLng.latitude,
+                        vehicleLng = latLng.longitude
                     )
                 }
         }
@@ -383,6 +453,10 @@ data class BookUiState(
     val selectedProviderId: String = "",
     val pickupAddress: String = "",
     val dropOffAddress: String = "",
+    val pickupLat: Double? = null,
+    val pickupLng: Double? = null,
+    val dropOffLat: Double? = null,
+    val dropOffLng: Double? = null,
     val distanceKmText: String = "",
     val selectedDateMillis: Long? = null,
     val selectedHour: Int? = null,
@@ -396,5 +470,7 @@ data class BookUiState(
     val isSubmittingBooking: Boolean = false,
     val bookingError: String? = null,
     val createdBooking: Booking? = null,
-    val showOtpDialog: Boolean = false
+    val showOtpDialog: Boolean = false,
+    val vehicleLat: Double? = null,
+    val vehicleLng: Double? = null
 )

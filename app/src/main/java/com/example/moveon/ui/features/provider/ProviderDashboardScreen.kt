@@ -32,6 +32,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -130,9 +132,16 @@ fun ProviderDashboardScreen(
                             }
                         }
                     }
-
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
+                    QuickActionsSection()
+                    EarningsSection(state = state)
+                    KpiSection(state = state)
+                    NewRequestsSection(state = state, onAccept = { bookingId -> viewModel.acceptBooking(bookingId) })
+                    ActiveJobsSection(state = state)
+                    if (state.errorMessage != null) {
+                        Text(
+                            text = state.errorMessage,
+                            color = Accent
+                        )
                     }
                 }
             }
@@ -309,11 +318,11 @@ private fun KpiSection(state: ProviderDashboardUiState) {
 }
 
 @Composable
-private fun NewRequestsSection(state: ProviderDashboardUiState) {
+private fun NewRequestsSection(state: ProviderDashboardUiState, onAccept: (String) -> Unit) {
 
     ProviderSectionHeader(title = "New Requests")
     state.newRequests.forEach { request ->
-        NewRequestCard(request)
+        NewRequestCard(request, onAccept)
     }
 
     if (state.newRequests.isEmpty()) {
@@ -332,7 +341,7 @@ private fun NewRequestsSection(state: ProviderDashboardUiState) {
 }
 
 @Composable
-private fun NewRequestCard(request: ProviderNewRequestUi) {
+private fun NewRequestCard(request: ProviderNewRequestUi, onAccept: (String) -> Unit) {
     val (serviceBackground, serviceColor) = requestServiceColors(request.service)
 
     Card(
@@ -375,18 +384,25 @@ private fun NewRequestCard(request: ProviderNewRequestUi) {
 
             HorizontalDivider(color = LightBorder)
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.WarningAmber,
-                    contentDescription = null,
-                    tint = Accent,
-                    modifier = Modifier.width(16.dp)
-                )
-                Text(
-                    text = "Assign a vehicle & driver to accept",
-                    color = LightTextSecondary,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.WarningAmber,
+                        contentDescription = null,
+                        tint = Accent,
+                        modifier = Modifier.width(16.dp)
+                    )
+                    Text(
+                        text = "Assign a vehicle & driver to accept",
+                        color = LightTextSecondary,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+
+                // Accept button
+                Button(onClick = { onAccept(request.bookingId) }) {
+                    Text("Accept")
+                }
             }
         }
     }

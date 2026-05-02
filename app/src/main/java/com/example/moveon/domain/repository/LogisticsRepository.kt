@@ -4,7 +4,7 @@ import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.domain.model.Vehicle
-import com.google.type.LatLng
+import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.flow.Flow
 
 interface LogisticsRepository {
@@ -18,8 +18,10 @@ interface LogisticsRepository {
     suspend fun getBookingsForProvider(providerId: String): Result<List<Booking>>
     suspend fun createBooking(booking: Booking): Result<Booking>
     suspend fun confirmBooking(booking: Booking)
+    // Confirm booking using only booking id (server-side update)
+    suspend fun confirmBookingById(bookingId: String)
     suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean
     suspend fun getBookingsForUser(userId: String): Result<List<Booking>>
     suspend fun getCurrentBookingForUser(userId: String): Result<Booking?>
-    //fun trackVehicleLocation(vehicleId: String): Flow<LatLng>
+    fun trackVehicleLocation(vehicleId: String): Flow<LatLng>
 }

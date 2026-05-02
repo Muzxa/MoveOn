@@ -6,6 +6,8 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     kotlin("plugin.serialization") version "2.0.21"
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
+
 }
 
 android {
@@ -51,6 +53,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.1")
     val room_version = "2.8.4"
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -116,4 +119,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
+    //Maps
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.maps.android:maps-compose:6.4.1")
+    // Places SDK for address autocomplete and place details
+    implementation("com.google.android.libraries.places:places:2.6.0")
 }

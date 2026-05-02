@@ -9,6 +9,8 @@ import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.domain.model.Vehicle
 import com.example.moveon.domain.repository.LogisticsRepository
+import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class LogisticsRepositoryImpl @Inject constructor(
@@ -78,6 +80,10 @@ class LogisticsRepositoryImpl @Inject constructor(
         firebaseService.updateBookingStatus(booking.id, "Confirmed")
     }
 
+    override suspend fun confirmBookingById(bookingId: String) {
+        firebaseService.updateBookingStatus(bookingId, "Confirmed")
+    }
+
     override suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean {
         return true
     }
@@ -96,5 +102,9 @@ class LogisticsRepositoryImpl @Inject constructor(
                 .filter { it.status != BookingStatus.COMPLETED }
                 .maxByOrNull { it.createdAt }
         }
+    }
+
+    override fun trackVehicleLocation(vehicleId: String): Flow<LatLng> {
+        return firebaseService.trackVehicleLocation(vehicleId)
     }
 }
