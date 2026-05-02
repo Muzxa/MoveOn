@@ -122,7 +122,7 @@ fun ProviderDashboardScreen(
                             QuickActionsSection()
                             EarningsSection(state = state)
                             KpiSection(state = state)
-                            NewRequestsSection(state = state)
+                            NewRequestsSection(state = state, onAccept = { bookingId -> viewModel.acceptBooking(bookingId) })
                             ActiveJobsSection(state = state)
                             if (state.errorMessage != null) {
                                 Text(
@@ -131,17 +131,6 @@ fun ProviderDashboardScreen(
                                 )
                             }
                         }
-                    }
-                    QuickActionsSection()
-                    EarningsSection(state = state)
-                    KpiSection(state = state)
-                    NewRequestsSection(state = state, onAccept = { bookingId -> viewModel.acceptBooking(bookingId) })
-                    ActiveJobsSection(state = state)
-                    if (state.errorMessage != null) {
-                        Text(
-                            text = state.errorMessage,
-                            color = Accent
-                        )
                     }
                 }
             }
