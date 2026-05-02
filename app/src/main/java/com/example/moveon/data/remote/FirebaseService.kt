@@ -67,6 +67,33 @@ class FirebaseService @Inject constructor(
         return bookingToPersist
     }
 
+    suspend fun createVehicle(vehicle: VehicleDto): VehicleDto {
+        val vehiclesCollection = firestore.collection("vehicles")
+        val documentRef = if (vehicle.vehicle_id.isBlank()) {
+            vehiclesCollection.document()
+        } else {
+            vehiclesCollection.document(vehicle.vehicle_id)
+        }
+
+        val vehicleToPersist = vehicle.copy(vehicle_id = documentRef.id)
+        documentRef.set(vehicleToPersist).await()
+        return vehicleToPersist
+    }
+
+    suspend fun updateVehicle(vehicle: VehicleDto): VehicleDto {
+        require(vehicle.vehicle_id.isNotBlank()) { "Vehicle id is required." }
+        val documentRef = firestore.collection("vehicles").document(vehicle.vehicle_id)
+        documentRef.set(vehicle).await()
+        return vehicle
+    }
+
+    suspend fun deleteVehicle(vehicleId: String) {
+        firestore.collection("vehicles")
+            .document(vehicleId)
+            .delete()
+            .await()
+    }
+
     suspend fun getBookingsForUser(userId: String): List<BookingDto> {
         return firestore.collection("bookings")
             .whereEqualTo("user_id", userId)

@@ -11,6 +11,9 @@ interface LogisticsRepository {
     suspend fun getMarketplaceProviders(): List<Provider>
     suspend fun getProviderById(providerId: String): Result<Provider?>
     suspend fun getVehiclesForProvider(providerId: String): Result<List<Vehicle>>
+    suspend fun createVehicle(vehicle: Vehicle): Result<Vehicle>
+    suspend fun updateVehicle(vehicle: Vehicle): Result<Vehicle>
+    suspend fun deleteVehicle(vehicleId: String): Result<Unit>
     suspend fun getDriversForProvider(providerId: String): Result<List<Driver>>
     suspend fun getBookingsForProvider(providerId: String): Result<List<Booking>>
     suspend fun createBooking(booking: Booking): Result<Booking>

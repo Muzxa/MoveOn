@@ -10,5 +10,6 @@ data class VehicleDto(
     val current_lat: Double = 0.0,
     val current_lng: Double = 0.0,
     val max_capacity: Double = 0.0,  
-    val max_volume: Double = 0.0
+    val max_volume: Double = 0.0,
+    val is_available: Boolean = true
 )
