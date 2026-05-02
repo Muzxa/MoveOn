@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+    implementation(libs.object1.detection.common)
     val room_version = "2.8.4"
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -108,6 +109,9 @@ dependencies {
 
     // ML Kit Barcode Scanner
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // TensorFlow Lite Task Vision (Object Detection)
+    implementation("org.tensorflow:tensorflow-lite-task-vision:0.4.4")
 
     // Guava for ListenableFuture
     implementation("com.google.guava:guava:32.1.3-android")
