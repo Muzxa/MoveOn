@@ -1523,178 +1523,9 @@ private fun PackedBoxAddConfirmationSheet(
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         dragHandle = {}
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 20.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                                        onMarkAsUnpackedClick(box.code)
-                                    },
-                                    onViewQrCode = {
-                                        menuExpanded = false
-                                        onViewQrCodeClick(
-                                            box.boxUuid,
-                                            box.code,
-                                            box.roomLabel.ifBlank { toTitle(box.category) }
-                                        )
-                                    },
-                                    onEditBox = {
-                                        menuExpanded = false
-                                        onEditBoxClick(box.code)
-                                    },
-                                    onDeleteBox = {
-                                        menuExpanded = false
-                                        onDeleteBoxClick(box.code)
-                                    }
-                                )
-                            }
 
 @Composable
 private fun UnpackedBoxCard(
-
-                @Composable
-                private fun BoxInfoDialog(
-                    data: BoxInfoDialogData,
-                    onDismiss: () -> Unit,
-                    onOpenItems: () -> Unit
-                ) {
-                    Dialog(onDismissRequest = onDismiss) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = LightSurface),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, LightBorder)
-                        ) {
-                            val spec = data.category.iconSpec()
-
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(76.dp)
-                                            .background(spec.containerColor, RoundedCornerShape(18.dp))
-                                            .border(1.dp, spec.borderColor, RoundedCornerShape(18.dp)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        BoxIcon(tint = spec.iconTint, iconSize = 34)
-                                    }
-
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Text(
-                                            text = "Box ${data.boxId}",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = LightTextPrimary
-                                        )
-                                        Text(
-                                            text = data.roomLabel.ifBlank { "No room label" },
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = LightTextSecondary
-                                        )
-                                        Text(
-                                            text = toTitle(data.category),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = LightTextPrimary
-                                        )
-                                        Text(
-                                            text = if (data.packed) "Packed" else "Unpacked",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = if (data.packed) Primary else LightTextSecondary
-                                        )
-                                    }
-                                }
-
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    InfoRow(label = "Box ID", value = data.boxId)
-                                    InfoRow(label = "Room", value = data.roomLabel.ifBlank { "Not set" })
-                                    InfoRow(label = "Category", value = toTitle(data.category))
-                                    InfoRow(label = "Items", value = data.itemCount.toString())
-                                    InfoRow(label = "Volume", value = "15m³")
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    OutlinedButton(
-                                        onClick = onDismiss,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(40.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        border = BorderStroke(1.dp, LightBorder),
-                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = LightSurfaceVariant)
-                                    ) {
-                                        Text(
-                                            text = "Close",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = LightTextPrimary
-                                        )
-                                    }
-
-                                    Button(
-                                        onClick = onOpenItems,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(40.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                                    ) {
-                                        Text(
-                                            text = "View Items",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                @Composable
-                private fun InfoRow(
-                    label: String,
-                    value: String
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = LightTextSecondary
-                        )
-                        Text(
-                            text = value,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = LightTextPrimary
-                        )
-                    }
-                }
     box: UnpackedBoxUi,
     onCardClick: () -> Unit,
     onViewQrCodeClick: (String, String, String) -> Unit,
@@ -1705,6 +1536,7 @@ private fun UnpackedBoxCard(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val spec = box.category.iconSpec()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1716,18 +1548,19 @@ private fun UnpackedBoxCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .heightIn(min = 96.dp)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(spec.containerColor, RoundedCornerShape(12.dp))
-                    .border(1.dp, spec.borderColor, RoundedCornerShape(12.dp)),
+                    .size(56.dp)
+                    .background(spec.containerColor, RoundedCornerShape(16.dp))
+                    .border(1.dp, spec.borderColor, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                QrIcon(tint = spec.iconTint, iconSize = 20)
+                BoxIcon(tint = spec.iconTint, iconSize = 30)
             }
 
             Column(modifier = Modifier.weight(1f)) {
@@ -1739,6 +1572,11 @@ private fun UnpackedBoxCard(
                 Text(
                     text = toTitle(box.category),
                     style = MaterialTheme.typography.labelLarge,
+                    color = LightTextSecondary
+                )
+                Text(
+                    text = box.roomLabel,
+                    style = MaterialTheme.typography.bodySmall,
                     color = LightTextSecondary
                 )
             }
