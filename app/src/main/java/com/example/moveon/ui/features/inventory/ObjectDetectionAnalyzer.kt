@@ -28,6 +28,12 @@ class ObjectDetectionAnalyzer(
     private var rotatedBuffer: Bitmap? = null
     private var frameCounter: Int = 0
     private val isProcessing = AtomicBoolean(false)
+    
+    // Store latest detection data
+    var latestDetections: List<DetectionData> = emptyList()
+        private set
+    var latestBitmap: Bitmap? = null
+        private set
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
@@ -102,6 +108,17 @@ class ObjectDetectionAnalyzer(
             val imageHeight = rotatedBitmap.height
 
             overlayView.setResults(results, imageWidth, imageHeight)
+            
+            // Store detection data for later extraction
+            latestDetections = results.map { detection ->
+                val category = detection.categories.maxByOrNull { it.score }
+                DetectionData(
+                    label = category?.label ?: "unknown",
+                    score = category?.score ?: 0f,
+                    boundingBox = detection.boundingBox
+                )
+            }
+            latestBitmap = rotatedBitmap.copy(rotatedBitmap.config ?: Bitmap.Config.ARGB_8888, true)
 
             if (results.isNotEmpty()) {
                 val summary = results.joinToString { detection ->
@@ -124,3 +141,9 @@ class ObjectDetectionAnalyzer(
         private const val TAG = "ObjectDetection"
     }
 }
+
+data class DetectionData(
+    val label: String,
+    val score: Float,
+    val boundingBox: android.graphics.RectF
+)

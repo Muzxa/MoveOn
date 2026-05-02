@@ -19,13 +19,21 @@ class ObjectDetectionOverlayView @JvmOverloads constructor(
     private data class DetectionBox(
         val boundingBox: RectF,
         val label: String,
-        val score: Float
+        val score: Float,
+        val index: Int
     )
 
-    private val boxPaint = Paint().apply {
+    private val blueBoxPaint = Paint().apply {
         style = Paint.Style.STROKE
-        strokeWidth = 4f
-        color = Color.WHITE
+        strokeWidth = 2f
+        color = Color.parseColor("#1565C0")  // MoveOn Blue
+        isAntiAlias = true
+    }
+
+    private val orangeBoxPaint = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = Color.parseColor("#FF6F00")  // MoveOn Orange
         isAntiAlias = true
     }
 
@@ -53,14 +61,15 @@ class ObjectDetectionOverlayView @JvmOverloads constructor(
         post {
             this.imageWidth = imageWidth
             this.imageHeight = imageHeight
-            detectionBoxes = results.mapNotNull { detection ->
-                val category = detection.categories.maxByOrNull { it.score } ?: return@mapNotNull null
+            detectionBoxes = results.mapIndexed { index, detection ->
+                val category = detection.categories.maxByOrNull { it.score } ?: return@mapIndexed null
                 DetectionBox(
                     boundingBox = detection.boundingBox,
                     label = category.label,
-                    score = category.score
+                    score = category.score,
+                    index = index
                 )
-            }
+            }.filterNotNull()
             invalidate()
         }
     }
@@ -71,6 +80,10 @@ class ObjectDetectionOverlayView @JvmOverloads constructor(
             invalidate()
         }
     }
+
+    fun getDetectedItemCount(): Int = detectionBoxes.size
+
+    fun getDetectedItems(): List<Pair<String, RectF>> = detectionBoxes.map { it.label to it.boundingBox }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -96,7 +109,9 @@ class ObjectDetectionOverlayView @JvmOverloads constructor(
                 detection.boundingBox.bottom * scale + dy
             )
 
-            canvas.drawRect(box, boxPaint)
+            // Alternate between blue and orange
+            val paint = if (detection.index % 2 == 0) blueBoxPaint else orangeBoxPaint
+            canvas.drawRect(box, paint)
 
             val label = "${detection.label} ${(detection.score * 100).toInt()}%"
             val textWidth = labelTextPaint.measureText(label)

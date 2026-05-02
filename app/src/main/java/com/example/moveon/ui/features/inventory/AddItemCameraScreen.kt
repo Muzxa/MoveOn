@@ -2,6 +2,8 @@ package com.example.moveon.ui.features.inventory
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.RectF
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -77,6 +79,7 @@ import org.tensorflow.lite.task.vision.detector.ObjectDetector
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlinx.coroutines.delay
 
 @Composable
 fun AddItemCameraScreen(
@@ -93,6 +96,10 @@ fun AddItemCameraScreen(
     var capturedImageUri by remember { mutableStateOf<String?>(null) }
     var isCapturingImage by remember { mutableStateOf(false) }
     var showLogDialog by remember { mutableStateOf(false) }
+    var detectedItemsCount by remember { mutableStateOf(0) }
+    var objectDetectionAnalyzer by remember { mutableStateOf<ObjectDetectionAnalyzer?>(null) }
+    var detectedImagesWithLabels by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    
     val overlayView = remember { ObjectDetectionOverlayView(context) }
     val objectDetector = remember { createObjectDetector(context) }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
@@ -146,6 +153,16 @@ fun AddItemCameraScreen(
         }
     }
 
+    // Poll for detected items count
+    LaunchedEffect(objectDetectionAnalyzer) {
+        if (objectDetectionAnalyzer != null) {
+            while (true) {
+                detectedItemsCount = overlayView.getDetectedItemCount()
+                delay(100)
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (hasCameraPermission.value) {
             AddItemCameraPreview(
@@ -153,7 +170,8 @@ fun AddItemCameraScreen(
                 cameraExecutor = cameraExecutor,
                 overlayView = overlayView,
                 objectDetector = objectDetector,
-                onImageCaptureReady = { imageCapture = it }
+                onImageCaptureReady = { imageCapture = it },
+                onAnalyzerReady = { analyzer -> objectDetectionAnalyzer = analyzer }
             )
         } else {
             Box(
@@ -202,41 +220,81 @@ fun AddItemCameraScreen(
             )
         }
 
+        val buttonText = if (detectedItemsCount > 0) {
+            "Log $detectedItemsCount ${if (detectedItemsCount == 1) "item" else "items"}"
+        } else {
+            "manually log items"
+        }
+
         MoveOnPillButton(
-            text = "Manually Log Item",
+            text = buttonText,
             onClick = {
-                val capture = imageCapture
-                if (capture == null) {
-                    Toast.makeText(context, "Camera is not ready yet", Toast.LENGTH_SHORT).show()
-                    return@MoveOnPillButton
-                }
-                if (isCapturingImage) return@MoveOnPillButton
+                if (detectedItemsCount > 0 && objectDetectionAnalyzer != null) {
+                    // Capture detected items
+                    val analyzer = objectDetectionAnalyzer!!
+                    val bitmap = analyzer.latestBitmap
+                    val detections = analyzer.latestDetections
 
-                isCapturingImage = true
-                val imageFile = File(context.cacheDir, "item_${System.currentTimeMillis()}.jpg")
-                val outputOptions = ImageCapture.OutputFileOptions.Builder(imageFile).build()
+                    if (bitmap != null && detections.isNotEmpty()) {
+                        val imagesWithLabels = mutableListOf<Pair<String, String>>()
+                        val padding = 16f
+                        
+                        detections.forEach { detection ->
+                            val box = detection.boundingBox
+                            val left = (box.left - padding).coerceAtLeast(0f).toInt()
+                            val top = (box.top - padding).coerceAtLeast(0f).toInt()
+                            val right = (box.right + padding).coerceAtMost(bitmap.width.toFloat()).toInt()
+                            val bottom = (box.bottom + padding).coerceAtMost(bitmap.height.toFloat()).toInt()
 
-                capture.takePicture(
-                    outputOptions,
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                            capturedImageUri = outputFileResults.savedUri?.toString()
-                                ?: Uri.fromFile(imageFile).toString()
-                            showLogDialog = true
-                            isCapturingImage = false
+                            if (left < right && top < bottom) {
+                                val croppedBitmap = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
+                                val croppedFile = File(context.cacheDir, "detection_${System.currentTimeMillis()}_${detections.indexOf(detection)}.jpg")
+                                croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, croppedFile.outputStream())
+                                imagesWithLabels.add(detection.label to Uri.fromFile(croppedFile).toString())
+                            }
                         }
 
-                        override fun onError(exception: ImageCaptureException) {
-                            isCapturingImage = false
-                            Toast.makeText(
-                                context,
-                                "Failed to capture image",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                        if (imagesWithLabels.isNotEmpty()) {
+                            detectedImagesWithLabels = imagesWithLabels
+                            showLogDialog = true
                         }
                     }
-                )
+                } else {
+                    // Manual capture
+                    val capture = imageCapture
+                    if (capture == null) {
+                        Toast.makeText(context, "Camera is not ready yet", Toast.LENGTH_SHORT).show()
+                        return@MoveOnPillButton
+                    }
+                    if (isCapturingImage) return@MoveOnPillButton
+
+                    isCapturingImage = true
+                    val imageFile = File(context.cacheDir, "item_${System.currentTimeMillis()}.jpg")
+                    val outputOptions = ImageCapture.OutputFileOptions.Builder(imageFile).build()
+
+                    capture.takePicture(
+                        outputOptions,
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                                capturedImageUri = outputFileResults.savedUri?.toString()
+                                    ?: Uri.fromFile(imageFile).toString()
+                                detectedImagesWithLabels = emptyList()
+                                showLogDialog = true
+                                isCapturingImage = false
+                            }
+
+                            override fun onError(exception: ImageCaptureException) {
+                                isCapturingImage = false
+                                Toast.makeText(
+                                    context,
+                                    "Failed to capture image",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+                }
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -249,26 +307,54 @@ fun AddItemCameraScreen(
     }
 
     if (showLogDialog) {
-        AddItemDialog(
-            imageUri = capturedImageUri,
-            onDismiss = { showLogDialog = false },
-            onSave = { name, quantity, description, isFragile, imageUrl ->
-                viewModel.addItem(
-                    boxId = boxId,
-                    name = name,
-                    quantity = quantity,
-                    description = description,
-                    isFragile = isFragile,
-                    imageUrl = imageUrl,
-                    onResult = { success ->
-                        if (success) {
-                            onItemSaved()
+        if (detectedImagesWithLabels.isNotEmpty()) {
+            // Log detected items one by one
+            AddItemDialog(
+                imageUri = detectedImagesWithLabels[0].second,
+                initialName = detectedImagesWithLabels[0].first,
+                onDismiss = { showLogDialog = false },
+                onSave = { name, quantity, description, isFragile, imageUrl ->
+                    viewModel.addItem(
+                        boxId = boxId,
+                        name = name,
+                        quantity = quantity,
+                        description = description,
+                        isFragile = isFragile,
+                        imageUrl = imageUrl,
+                        onResult = { success ->
+                            if (success) {
+                                detectedImagesWithLabels = detectedImagesWithLabels.drop(1)
+                                if (detectedImagesWithLabels.isEmpty()) {
+                                    showLogDialog = false
+                                    onItemSaved()
+                                }
+                            }
                         }
-                    }
-                )
-                showLogDialog = false
-            }
-        )
+                    )
+                }
+            )
+        } else {
+            AddItemDialog(
+                imageUri = capturedImageUri,
+                onDismiss = { showLogDialog = false },
+                onSave = { name, quantity, description, isFragile, imageUrl ->
+                    viewModel.addItem(
+                        boxId = boxId,
+                        name = name,
+                        quantity = quantity,
+                        description = description,
+                        isFragile = isFragile,
+                        imageUrl = imageUrl,
+                        onResult = { success ->
+                            if (success) {
+                                onItemSaved()
+                            }
+                        }
+                    )
+                    showLogDialog = false
+                }
+            )
+        }
     }
 }
 
@@ -278,10 +364,12 @@ private fun AddItemCameraPreview(
     cameraExecutor: ExecutorService,
     overlayView: ObjectDetectionOverlayView,
     objectDetector: ObjectDetector?,
-    onImageCaptureReady: (ImageCapture) -> Unit
+    onImageCaptureReady: (ImageCapture) -> Unit,
+    onAnalyzerReady: (ObjectDetectionAnalyzer) -> Unit
 ) {
     val context = LocalContext.current
     val previewViewRef = remember { mutableStateOf<PreviewView?>(null) }
+    var analyzerRef by remember { mutableStateOf<ObjectDetectionAnalyzer?>(null) }
 
     LaunchedEffect(Unit) {
         val previewView = previewViewRef.value ?: return@LaunchedEffect
@@ -303,14 +391,14 @@ private fun AddItemCameraPreview(
                     .build()
 
                 if (objectDetector != null) {
-                    imageAnalysis.setAnalyzer(
-                        cameraExecutor,
-                        ObjectDetectionAnalyzer(
-                            context = context,
-                            detector = objectDetector,
-                            overlayView = overlayView
-                        )
+                    val analyzer = ObjectDetectionAnalyzer(
+                        context = context,
+                        detector = objectDetector,
+                        overlayView = overlayView
                     )
+                    analyzerRef = analyzer
+                    onAnalyzerReady(analyzer)
+                    imageAnalysis.setAnalyzer(cameraExecutor, analyzer)
                 }
 
                 cameraProvider.unbindAll()
