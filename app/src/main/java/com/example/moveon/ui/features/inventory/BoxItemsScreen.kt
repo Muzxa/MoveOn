@@ -2,6 +2,7 @@ package com.example.moveon.ui.features.inventory
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.example.moveon.domain.model.Item
 import com.example.moveon.ui.components.MoveOnPillButton
 import com.example.moveon.ui.components.MoveOnSwipeActionBox
@@ -245,47 +247,91 @@ fun BoxItemsScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .height(120.dp)
                                 .clickable { itemInfo = item },
                             colors = CardDefaults.cardColors(containerColor = LightSurface),
                             border = BorderStroke(1.dp, LightBorder),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                if (item.imageUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = item.imageUrl,
+                                        contentDescription = "${item.name} thumbnail",
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .background(
+                                                color = LightSurfaceVariant,
+                                                shape = RoundedCornerShape(12.dp)
+                                            ),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .background(
+                                                color = LightSurfaceVariant,
+                                                shape = RoundedCornerShape(12.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Inventory2,
+                                            contentDescription = null,
+                                            tint = Primary,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                    }
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    horizontalAlignment = Alignment.Start
                                 ) {
-                                    Text(
-                                        text = item.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = LightTextPrimary
-                                    )
-                                    Text(
-                                        text = "x${item.quantity}",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = LightTextSecondary
-                                    )
-                                }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = LightTextPrimary
+                                        )
+                                        Text(
+                                            text = "x${item.quantity}",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = LightTextSecondary
+                                        )
+                                    }
 
-                                if (item.description.isNotBlank()) {
-                                    Text(
-                                        text = item.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = LightTextSecondary
-                                    )
-                                }
+                                    if (item.description.isNotBlank()) {
+                                        Text(
+                                            text = item.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = LightTextSecondary,
+                                            maxLines = 1
+                                        )
+                                    }
 
-                                if (item.isFragile) {
-                                    Text(
-                                        text = "Fragile",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Accent,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                                    if (item.isFragile) {
+                                        Text(
+                                            text = "Fragile",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Accent,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -412,6 +458,39 @@ private fun ItemInfoDialog(
                     color = LightTextPrimary,
                     fontWeight = FontWeight.SemiBold
                 )
+
+                if (item.imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = item.imageUrl,
+                        contentDescription = "${item.name} image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .background(
+                                color = LightSurfaceVariant,
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .background(
+                                color = LightSurfaceVariant,
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Inventory2,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                }
 
                 Text(
                     text = item.name,
