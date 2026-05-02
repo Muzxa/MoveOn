@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,7 +30,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Add
-// removed unused ChevronRight import; chevron removed from UI
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
@@ -136,6 +136,15 @@ private data class ModifyBoxDialogData(
     val category: MoveOnCategory
 )
 
+private data class BoxInfoDialogData(
+    val boxUuid: String,
+    val boxId: String,
+    val roomLabel: String,
+    val category: MoveOnCategory,
+    val packed: Boolean,
+    val itemCount: Int
+)
+
 private data class DeleteBoxDialogData(
     val boxUuid: String,
     val boxId: String,
@@ -156,6 +165,7 @@ fun InventoryScreen(
     var qrViewerData by remember { mutableStateOf<QrViewerData?>(null) }
     var modifyBoxData by remember { mutableStateOf<ModifyBoxDialogData?>(null) }
     var deleteBoxData by remember { mutableStateOf<DeleteBoxDialogData?>(null) }
+    var boxInfoData by remember { mutableStateOf<BoxInfoDialogData?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
@@ -313,7 +323,17 @@ fun InventoryScreen(
             items(filteredPackedBoxes.size) { index ->
                 PackedBoxCard(
                     box = filteredPackedBoxes[index],
-                    onCardClick = { onBoxClick(filteredPackedBoxes[index].boxUuid, false) },
+                    onCardClick = {
+                        val box = filteredPackedBoxes[index]
+                        boxInfoData = BoxInfoDialogData(
+                            boxUuid = box.boxUuid,
+                            boxId = extractBoxId(box.code),
+                            roomLabel = box.roomLabel,
+                            category = box.category,
+                            packed = true,
+                            itemCount = box.itemCount
+                        )
+                    },
                     onViewQrCodeClick = { boxUuid, boxCode, roomLabel ->
                         qrViewerData = QrViewerData(
                             boxUuid = boxUuid,
@@ -381,7 +401,17 @@ fun InventoryScreen(
             items(filteredUnpackedBoxes.size) { index ->
                 UnpackedBoxCard(
                     box = filteredUnpackedBoxes[index],
-                    onCardClick = { onBoxClick(filteredUnpackedBoxes[index].boxUuid, false) },
+                    onCardClick = {
+                        val box = filteredUnpackedBoxes[index]
+                        boxInfoData = BoxInfoDialogData(
+                            boxUuid = box.boxUuid,
+                            boxId = extractBoxId(box.code),
+                            roomLabel = box.roomLabel,
+                            category = box.category,
+                            packed = false,
+                            itemCount = 0
+                        )
+                    },
                     onViewQrCodeClick = { boxUuid, boxCode, roomLabel ->
                         qrViewerData = QrViewerData(
                             boxUuid = boxUuid,
@@ -477,6 +507,17 @@ fun InventoryScreen(
                         )
                     )
                     deleteBoxData = null
+                }
+            )
+        }
+
+        boxInfoData?.let { data ->
+            BoxInfoDialog(
+                data = data,
+                onDismiss = { boxInfoData = null },
+                onOpenItems = {
+                    boxInfoData = null
+                    onBoxClick(data.boxUuid, false)
                 }
             )
         }
@@ -1120,6 +1161,7 @@ private fun PackedBoxCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = 96.dp)
                 .padding(16.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1127,18 +1169,19 @@ private fun PackedBoxCard(
             val spec = box.category.iconSpec()
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(spec.containerColor, RoundedCornerShape(12.dp)),
+                    .size(56.dp)
+                    .background(spec.containerColor, RoundedCornerShape(16.dp))
+                    .border(1.dp, spec.borderColor, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                BoxIcon(tint = spec.iconTint)
+                BoxIcon(tint = spec.iconTint, iconSize = 30)
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     Column {
                         Text(
@@ -1301,53 +1344,216 @@ private fun PackedBoxAddConfirmationSheet(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
-                    ) {
+                                .heightIn(min = 96.dp)
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
                         Icon(
-                            imageVector = Icons.Outlined.Close,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                             contentDescription = null,
-                            tint = LightTextPrimary,
-                            modifier = Modifier.size(16.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(spec.containerColor, RoundedCornerShape(16.dp))
+                                    .border(1.dp, spec.borderColor, RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BoxIcon(tint = spec.iconTint, iconSize = 30)
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = box.code,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = LightTextPrimary
+                                )
+                                Text(
+                                    text = toTitle(box.category),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = LightTextSecondary
+                                )
+                                Text(
+                                    text = box.roomLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = LightTextSecondary
+                                )
+                            }
+
+                            Box {
+                                IconButton(onClick = { menuExpanded = true }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.MoreVert,
+                                        contentDescription = "Box options",
+                                        tint = LightTextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                BoxOptionsMenu(
+                                    expanded = menuExpanded,
+                                    onDismiss = { menuExpanded = false },
+                                    packedActionLabel = "Mark As Packed",
+                                    onAddItems = {
+                                        menuExpanded = false
+                                        onAddItemsClick()
+                                    },
+                                    onTogglePackedState = {
+                                        menuExpanded = false
+                                        onMarkAsUnpackedClick(box.code)
+                                    },
+                                    onViewQrCode = {
+                                        menuExpanded = false
+                                        onViewQrCodeClick(
+                                            box.boxUuid,
+                                            box.code,
+                                            box.roomLabel.ifBlank { toTitle(box.category) }
+                                        )
+                                    },
+                                    onEditBox = {
+                                        menuExpanded = false
+                                        onEditBoxClick(box.code)
+                                    },
+                                    onDeleteBox = {
+                                        menuExpanded = false
+                                        onDeleteBoxClick(box.code)
+                                    }
+                                )
+                            }
+
+@Composable
+private fun UnpackedBoxCard(
+
+                @Composable
+                private fun BoxInfoDialog(
+                    data: BoxInfoDialogData,
+                    onDismiss: () -> Unit,
+                    onOpenItems: () -> Unit
+                ) {
+                    Dialog(onDismissRequest = onDismiss) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = LightSurface),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, LightBorder)
+                        ) {
+                            val spec = data.category.iconSpec()
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(76.dp)
+                                            .background(spec.containerColor, RoundedCornerShape(18.dp))
+                                            .border(1.dp, spec.borderColor, RoundedCornerShape(18.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        BoxIcon(tint = spec.iconTint, iconSize = 34)
+                                    }
+
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Box ${data.boxId}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = LightTextPrimary
+                                        )
+                                        Text(
+                                            text = data.roomLabel.ifBlank { "No room label" },
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = LightTextSecondary
+                                        )
+                                        Text(
+                                            text = toTitle(data.category),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = LightTextPrimary
+                                        )
+                                        Text(
+                                            text = if (data.packed) "Packed" else "Unpacked",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (data.packed) Primary else LightTextSecondary
+                                        )
+                                    }
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    InfoRow(label = "Box ID", value = data.boxId)
+                                    InfoRow(label = "Room", value = data.roomLabel.ifBlank { "Not set" })
+                                    InfoRow(label = "Category", value = toTitle(data.category))
+                                    InfoRow(label = "Items", value = data.itemCount.toString())
+                                    InfoRow(label = "Volume", value = "15m³")
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = onDismiss,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(40.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.dp, LightBorder),
+                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = LightSurfaceVariant)
+                                    ) {
+                                        Text(
+                                            text = "Close",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = LightTextPrimary
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = onOpenItems,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(40.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                                    ) {
+                                        Text(
+                                            text = "View Items",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                @Composable
+                private fun InfoRow(
+                    label: String,
+                    value: String
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = LightTextSecondary
                         )
                         Text(
-                            text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge,
+                            text = value,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = LightTextPrimary
                         )
                     }
                 }
-
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "Continue",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun UnpackedBoxCard(
     box: UnpackedBoxUi,
     onCardClick: () -> Unit,
     onViewQrCodeClick: (String, String, String) -> Unit,
