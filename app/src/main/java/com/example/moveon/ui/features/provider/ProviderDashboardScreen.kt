@@ -1,5 +1,6 @@
 package com.example.moveon.ui.features.provider
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
@@ -44,9 +46,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.moveon.util.LocationPermissionHandler
+import com.example.moveon.util.LocationUtils
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.delay
 import com.example.moveon.ui.components.ProviderBottomBar
 import com.example.moveon.ui.components.ProviderDashboardTab
 import com.example.moveon.ui.components.ProviderGlassStatCard
@@ -76,7 +83,15 @@ fun ProviderDashboardScreen(
     viewModel: ProviderDashboardViewModel = hiltViewModel()
 ) {
     val state = viewModel.state.value
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(ProviderDashboardTab.Dashboard) }
+
+    LaunchedEffect(state.showNewRequestNotification) {
+        if (state.showNewRequestNotification) {
+            kotlinx.coroutines.delay(5000) // Show notification for 5 seconds
+            viewModel.dismissNewRequestNotification()
+        }
+    }
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == ProviderDashboardTab.Profile) {
@@ -85,15 +100,53 @@ fun ProviderDashboardScreen(
         }
     }
 
-    Scaffold(
-        containerColor = LightBackground,
-        bottomBar = {
-            ProviderBottomBar(
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it }
-            )
+    LocationPermissionHandler { requestPermission, isPermissionGranted ->
+        LaunchedEffect(state.activeTrackingBookingId, isPermissionGranted) {
+            if (state.activeTrackingBookingId != null && !isPermissionGranted) {
+                requestPermission()
+            }
         }
-    ) { innerPadding ->
+
+        LaunchedEffect(state.activeTrackingBookingId, isPermissionGranted) {
+            Log.d("ProviderLocationLoop", "[LAUNCHED_EFFECT] activeTrackingBookingId=${state.activeTrackingBookingId}, isPermissionGranted=$isPermissionGranted")
+            if (!isPermissionGranted || state.activeTrackingBookingId == null) {
+                Log.d("ProviderLocationLoop", "[EARLY_EXIT] Permission: $isPermissionGranted, BookingId: ${state.activeTrackingBookingId}")
+                return@LaunchedEffect
+            }
+            Log.d("ProviderLocationLoop", "[START_LOOP] Starting location polling loop for booking: ${state.activeTrackingBookingId}")
+            val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+            var loopCount = 0
+            while (true) {
+                try {
+                    loopCount++
+                    Log.d("ProviderLocationLoop", "[LOOP_$loopCount] Getting current location...")
+                    val position = LocationUtils.getCurrentLocation(fusedClient)
+                    if (position != null) {
+                        Log.d("ProviderLocationLoop", "[LOCATION_ACQUIRED_$loopCount] Lat: ${position.latitude}, Lng: ${position.longitude}")
+                        viewModel.publishForegroundLocationSnapshot(
+                            lat = position.latitude,
+                            lng = position.longitude
+                        )
+                    } else {
+                        Log.w("ProviderLocationLoop", "[NO_LOCATION_$loopCount] getCurrentLocation returned null")
+                    }
+                    delay(8_000)
+                } catch (e: Exception) {
+                    Log.e("ProviderLocationLoop", "[LOOP_ERROR] Exception in location polling loop", e)
+                    break
+                }
+            }
+        }
+
+        Scaffold(
+            containerColor = LightBackground,
+            bottomBar = {
+                ProviderBottomBar(
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it }
+                )
+            }
+        ) { innerPadding ->
         when (selectedTab) {
             ProviderDashboardTab.Dashboard -> {
                 LazyColumn(
@@ -113,6 +166,13 @@ fun ProviderDashboardScreen(
                                 .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            if (state.showNewRequestNotification && state.newRequestNotificationMessage != null) {
+                                NewRequestNotificationCard(
+                                    message = state.newRequestNotificationMessage,
+                                    onDismiss = { viewModel.dismissNewRequestNotification() }
+                                )
+                            }
+
                             if (state.isLoading) {
                                 Text(
                                     text = "Loading dashboard...",
@@ -144,7 +204,7 @@ fun ProviderDashboardScreen(
             }
 
             ProviderDashboardTab.Jobs -> {
-                ProviderToBeImplemented(
+                ProviderJobsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
@@ -152,6 +212,7 @@ fun ProviderDashboardScreen(
             }
 
             ProviderDashboardTab.Profile -> Unit
+        }
         }
     }
 }
@@ -482,6 +543,58 @@ private fun ActiveJobCard(job: ProviderActiveJobUi) {
             }
 
             Text(text = job.vehicle, color = LightTextSecondary)
+        }
+    }
+}
+
+@Composable
+private fun NewRequestNotificationCard(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Primary.copy(alpha = 0.95f)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.NotificationsNone,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.width(20.dp)
+                )
+                Text(
+                    text = message,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .width(60.dp)
+                    .height(32.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+            ) {
+                Text(
+                    text = "View",
+                    color = Primary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
         }
     }
 }

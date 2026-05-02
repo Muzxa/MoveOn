@@ -79,11 +79,21 @@ class HomeViewModel @Inject constructor(
 
         logisticsRepository.getCurrentBookingForUser(user.id)
             .onSuccess { booking ->
-                _homeState.value = baseState.copy(
-                    isLoading = false,
-                    activeMove = booking?.toActiveMoveUi(),
-                    errorMessage = null
-                )
+                if (booking == null) {
+                    _homeState.value = baseState.copy(
+                        isLoading = false,
+                        activeMove = null,
+                        errorMessage = null
+                    )
+                } else {
+                    val providerResult = logisticsRepository.getProviderById(booking.providerId)
+                    val providerName = providerResult.getOrNull()?.establishmentName ?: "Assigned Provider"
+                    _homeState.value = baseState.copy(
+                        isLoading = false,
+                        activeMove = booking.toActiveMoveUi(providerName),
+                        errorMessage = null
+                    )
+                }
             }
             .onFailure { throwable ->
                 _homeState.value = baseState.copy(
@@ -100,13 +110,13 @@ class HomeViewModel @Inject constructor(
         return (first + second).ifBlank { "MO" }
     }
 
-    private fun Booking.toActiveMoveUi(): ActiveMoveUi {
+    private fun Booking.toActiveMoveUi(providerName: String = "Assigned Provider"): ActiveMoveUi {
         return ActiveMoveUi(
             moveId = id,
             statusLabel = status.toUiLabel(),
             pickupAddress = pickupAddress,
             dropOffAddress = dropOffAddress,
-            providerLabel = if (providerId.isBlank()) "Provider assigned soon" else "Provider #$providerId",
+            providerLabel = if (providerName.isBlank()) "Provider assigned soon" else providerName,
             etaLabel = estimateEta(scheduledTime)
         )
     }

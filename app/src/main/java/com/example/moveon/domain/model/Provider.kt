@@ -8,5 +8,6 @@ data class Provider(
     val baseRate: Double,
     val ratePerKm: Double,
     val businessLat: Double = 0.0,
-    val businessLng: Double = 0.0
+    val businessLng: Double = 0.0,
+    val phoneNumber: String? = null
 )

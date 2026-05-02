@@ -1,15 +1,20 @@
 package com.example.moveon.data.remote
 
+import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.moveon.app.data.remote.dto.BookingDto
 import com.moveon.app.data.remote.dto.DriverDto
 import com.moveon.app.data.remote.dto.ProviderDto
 import com.moveon.app.data.remote.dto.VehicleDto
+import com.example.moveon.domain.model.BookingStatus
+import com.example.moveon.domain.model.TripActorType
+import com.example.moveon.domain.model.TripLocation
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -29,7 +34,88 @@ class FirebaseService @Inject constructor(
             .toObjects(ProviderDto::class.java)
     }
 
-    //listens to live updates for real time tracking
+    // Writes latest actor location for a booking in Realtime Database.
+    suspend fun publishTripLocation(
+        bookingId: String,
+        providerId: String,
+        userId: String,
+        actorId: String,
+        actorType: TripActorType,
+        lat: Double,
+        lng: Double,
+        vehicleId: String? = null,
+        speedMps: Double? = null,
+        headingDeg: Double? = null,
+        timestamp: Long = System.currentTimeMillis()
+    ) {
+        val latestRef = realTimeDB.getReference("trip_locations/$bookingId/latest")
+        val payload = mutableMapOf<String, Any>(
+            "bookingId" to bookingId,
+            "provider_id" to providerId,
+            "user_id" to userId,
+            "actorId" to actorId,
+            "actorType" to actorType.name,
+            "lat" to lat,
+            "lng" to lng,
+            "timestamp" to timestamp
+        )
+        if (!vehicleId.isNullOrBlank()) payload["vehicleId"] = vehicleId
+        if (speedMps != null) payload["speedMps"] = speedMps
+        if (headingDeg != null) payload["headingDeg"] = headingDeg
+
+        latestRef.setValue(payload).await()
+    }
+
+    fun observeTripLocation(bookingId: String): Flow<TripLocation> = callbackFlow {
+        val ref = realTimeDB.getReference("trip_locations/$bookingId/latest")
+        Log.d("TripLocationListener", "[SUBSCRIBE] Starting trip location listener for booking: $bookingId at path: trip_locations/$bookingId/latest")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                Log.d("TripLocationListener", "[DATA_RECEIVED] Snapshot exists: ${snapshot.exists()}, children: ${snapshot.childrenCount}")
+                val lat = snapshot.child("lat").getValue(Double::class.java) ?: run {
+                    Log.e("TripLocationListener", "[PARSE_ERROR] Missing or invalid lat: ${snapshot.child("lat").value}")
+                    return
+                }
+                val lng = snapshot.child("lng").getValue(Double::class.java) ?: run {
+                    Log.e("TripLocationListener", "[PARSE_ERROR] Missing or invalid lng: ${snapshot.child("lng").value}")
+                    return
+                }
+                Log.d("TripLocationListener", "[LOCATION_UPDATE] Booking: $bookingId, Lat: $lat, Lng: $lng")
+                val actorId = snapshot.child("actorId").getValue(String::class.java).orEmpty()
+                val actorTypeRaw = snapshot.child("actorType").getValue(String::class.java).orEmpty()
+                val actorType = runCatching { TripActorType.valueOf(actorTypeRaw.uppercase()) }
+                    .getOrDefault(TripActorType.PROVIDER)
+                val vehicleId = snapshot.child("vehicleId").getValue(String::class.java)
+                val speedMps = snapshot.child("speedMps").getValue(Double::class.java)
+                val headingDeg = snapshot.child("headingDeg").getValue(Double::class.java)
+                val timestamp = snapshot.child("timestamp").getValue(Long::class.java)
+                    ?: System.currentTimeMillis()
+
+                trySend(
+                    TripLocation(
+                        bookingId = bookingId,
+                        actorId = actorId,
+                        actorType = actorType,
+                        vehicleId = vehicleId,
+                        lat = lat,
+                        lng = lng,
+                        speedMps = speedMps,
+                        headingDeg = headingDeg,
+                        timestamp = timestamp
+                    )
+                )
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("TripLocationListener", "[LISTENER_ERROR] Failed to observe trip location for $bookingId: ${error.message}", error.toException())
+                close(error.toException())
+            }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    // Legacy vehicle-level location stream kept for compatibility.
     fun trackVehicleLocation(vehicleId: String): Flow<LatLng> = callbackFlow {
         val ref = realTimeDB.getReference("vehicles/$vehicleId/location")
         val listener = object : ValueEventListener {
@@ -47,10 +133,16 @@ class FirebaseService @Inject constructor(
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    //update booking status
-    suspend fun updateBookingStatus(bookingId: String, status: String){
+    // Updates booking status and, when provided, the assigned provider id.
+    suspend fun updateBookingStatus(bookingId: String, status: String, providerId: String? = null) {
+        val updates = mutableMapOf<String, Any>(
+            "status" to status
+        )
+        if (!providerId.isNullOrBlank()) {
+            updates["provider_id"] = providerId
+        }
         firestore.collection("bookings").document(bookingId)
-            .update("status", status)
+            .update(updates)
             .await()
     }
 
@@ -63,7 +155,9 @@ class FirebaseService @Inject constructor(
         }
 
         val bookingToPersist = booking.copy(booking_id = documentRef.id)
+        Log.d("FirebaseService", "[BOOKING_CREATE] Persisting booking - ID: ${bookingToPersist.booking_id}, Provider: ${bookingToPersist.provider_id}, User: ${bookingToPersist.user_id}, Status: ${bookingToPersist.status}")
         documentRef.set(bookingToPersist).await()
+        Log.d("FirebaseService", "[BOOKING_CREATE] Successfully persisted booking ${bookingToPersist.booking_id} to provider ${bookingToPersist.provider_id}")
         return bookingToPersist
     }
 
@@ -132,5 +226,55 @@ class FirebaseService @Inject constructor(
             .get()
             .await()
             .toObjects(BookingDto::class.java)
+    }
+
+    fun observeBookingsForProvider(providerId: String): Flow<List<BookingDto>> = callbackFlow {
+        Log.d("FirebaseService", "[PROVIDER_LISTENER] Setting up listener for provider: $providerId")
+        val query = firestore.collection("bookings")
+            .whereEqualTo("provider_id", providerId)
+
+        val registration: ListenerRegistration = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e("FirebaseService", "[PROVIDER_LISTENER] ERROR for provider $providerId: ${error.message}", error)
+                close(error)
+                return@addSnapshotListener
+            }
+
+            val bookings = snapshot?.toObjects(BookingDto::class.java).orEmpty()
+            Log.d("FirebaseService", "[PROVIDER_LISTENER] Received ${bookings.size} bookings for provider $providerId: ${bookings.map { it.booking_id to it.status }.joinToString(", ")}")
+            trySend(bookings)
+        }
+
+        awaitClose { 
+            Log.d("FirebaseService", "[PROVIDER_LISTENER] Removing listener for provider: $providerId")
+            registration.remove() 
+        }
+    }
+
+    // Observes real-time booking status changes
+    fun observeBookingStatus(bookingId: String): Flow<BookingStatus> = callbackFlow {
+        val ref = firestore.collection("bookings").document(bookingId)
+        val registration = ref.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            if (snapshot != null && snapshot.exists()) {
+                val bookingDto = snapshot.toObject(BookingDto::class.java)
+                if (bookingDto != null) {
+                    val status = try {
+                        BookingStatus.valueOf(bookingDto.status.uppercase())
+                    } catch (e: Exception) {
+                        BookingStatus.SEARCHING
+                    }
+                    trySend(status)
+                }
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    suspend fun getUserById(userId: String): com.moveon.app.data.remote.dto.UserDto? {
+        return firestore.collection("users").document(userId).get().await().toObject(com.moveon.app.data.remote.dto.UserDto::class.java)
     }
 }

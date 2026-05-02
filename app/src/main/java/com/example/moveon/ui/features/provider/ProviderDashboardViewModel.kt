@@ -1,5 +1,6 @@
 package com.example.moveon.ui.features.provider
 
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -8,15 +9,20 @@ import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.BookingStatus
 import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
+import com.example.moveon.domain.model.TripActorType
 import com.example.moveon.domain.model.User
 import com.example.moveon.domain.model.UserRole
 import com.example.moveon.domain.model.Vehicle
 import com.example.moveon.domain.repository.AuthRepository
 import com.example.moveon.domain.repository.LogisticsRepository
+import com.example.moveon.util.LocationUtils
+import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -30,16 +36,87 @@ class ProviderDashboardViewModel @Inject constructor(
     private val logisticsRepository: LogisticsRepository
 ) : ViewModel() {
 
+    private var bookingsListenerJob: Job? = null
+    private var lastPublishedLocation: LatLng? = null
+    private var lastPublishedAt: Long = 0L
+
     fun acceptBooking(bookingId: String, onComplete: (Boolean, String?) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
             try {
-                logisticsRepository.confirmBookingById(bookingId)
+                val providerId = currentUser.value?.id
+                    ?: throw IllegalStateException("Provider session not available")
+                logisticsRepository.confirmBookingById(bookingId, providerId)
                 onComplete(true, null)
                 // refresh list
                 refresh()
             } catch (e: Exception) {
                 onComplete(false, e.message)
             }
+        }
+    }
+
+    fun dismissNewRequestNotification() {
+        _state.value = _state.value.copy(
+            showNewRequestNotification = false,
+            newRequestNotificationMessage = null
+        )
+    }
+
+    fun publishForegroundLocationSnapshot(lat: Double, lng: Double) {
+        Log.d("PublishLocation", "[START] Called with Lat=$lat, Lng=$lng")
+        val snapshot = _state.value
+        val bookingId = snapshot.activeTrackingBookingId ?: run {
+            Log.w("PublishLocation", "[NO_BOOKING_ID] activeTrackingBookingId is null")
+            return
+        }
+        val providerId = currentUser.value?.id ?: run {
+            Log.w("PublishLocation", "[NO_PROVIDER_ID] currentUser.id is null")
+            return
+        }
+        val userId = snapshot.activeTrackingUserId ?: run {
+            Log.w("PublishLocation", "[NO_USER_ID] activeTrackingUserId is null")
+            return
+        }
+        val actorId = providerId
+        val nowMs = System.currentTimeMillis()
+        Log.d("PublishLocation", "[IDS] BookingId=$bookingId, ProviderId=$providerId, UserId=$userId")
+
+        val newPoint = LatLng(lat, lng)
+        val lastPoint = lastPublishedLocation
+        val movedKm = if (lastPoint != null) {
+            LocationUtils.calculateDistanceKm(lastPoint, newPoint)
+        } else {
+            Double.MAX_VALUE
+        }
+
+        val elapsedMs = nowMs - lastPublishedAt
+        val shouldPublish = lastPoint == null || elapsedMs >= 10_000L || movedKm >= 0.02
+        Log.d("PublishLocation", "[THROTTLE] LastPoint=$lastPoint, ElapsedMs=$elapsedMs, MovedKm=$movedKm, ShouldPublish=$shouldPublish")
+        if (!shouldPublish) {
+            Log.d("PublishLocation", "[THROTTLED] Skipping publish due to throttle")
+            return
+        }
+
+        viewModelScope.launch {
+            Log.d("PublishLocation", "[ASYNC_START] Launching repository call for booking $bookingId")
+            runCatching {
+                logisticsRepository.publishTripLocation(
+                    bookingId = bookingId,
+                    providerId = providerId,
+                    userId = userId,
+                    actorId = actorId,
+                    actorType = TripActorType.PROVIDER,
+                    lat = lat,
+                    lng = lng,
+                    vehicleId = snapshot.activeTrackingVehicleId,
+                    timestamp = nowMs
+                )
+                Log.d("PublishLocation", "[PUBLISHED] Successfully published location for booking $bookingId")
+            }.onFailure { error ->
+                Log.e("PublishLocation", "[PUBLISH_ERROR] Failed to publish location: ${error.message}", error)
+            }
+            lastPublishedLocation = newPoint
+            lastPublishedAt = nowMs
         }
     }
 
@@ -145,6 +222,74 @@ class ProviderDashboardViewModel @Inject constructor(
             0
         }
 
+        publishDashboardState(
+            provider = provider,
+            vehicles = vehicles,
+            drivers = drivers,
+            bookings = bookings,
+            displayName = displayName,
+            earningsToday = earningsToday,
+            earningsWeek = earningsWeek,
+            earningsMonth = earningsMonth,
+            onTimePct = onTimePct,
+            hasCriticalError = providerResult.isFailure && vehiclesResult.isFailure && driversResult.isFailure && bookingsResult.isFailure,
+            shouldShowNotification = false
+        )
+
+        bookingsListenerJob?.cancel()
+        bookingsListenerJob = viewModelScope.launch {
+            try {
+                Log.d("ProviderDashboard", "[LISTENER_SETUP] Starting live bookings listener for provider: ${user.id}")
+                logisticsRepository.observeBookingsForProvider(user.id)
+                    .catch { error ->
+                        Log.e("ProviderDashboard", "[LISTENER_ERROR] Failed to observe bookings for provider ${user.id}: ${error.message}", error)
+                    }
+                    .collect { liveBookings ->
+                        Log.d("ProviderDashboard", "[LISTENER_UPDATE] Received ${liveBookings.size} live bookings for provider ${user.id}")
+                        val newRequests = liveBookings.filter { it.status == BookingStatus.SEARCHING }
+                        Log.d("ProviderDashboard", "[NEW_REQUESTS] New requests count: ${newRequests.size} - ${newRequests.map { it.id }.joinToString(", ")}")
+                        
+                        publishDashboardState(
+                            provider = provider,
+                            vehicles = vehicles,
+                            drivers = drivers,
+                            bookings = liveBookings,
+                            displayName = displayName,
+                            earningsToday = sumEarningsSince(liveBookings, todayStart),
+                            earningsWeek = sumEarningsSince(liveBookings, weekStart),
+                            earningsMonth = sumEarningsSince(liveBookings, monthStart),
+                            onTimePct = computeOnTimePercent(liveBookings),
+                            hasCriticalError = false,
+                            shouldShowNotification = true
+                        )
+                    }
+            } catch (e: Exception) {
+                Log.e("ProviderDashboard", "[LISTENER_SETUP] Exception setting up listener: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun publishDashboardState(
+        provider: Provider?,
+        vehicles: List<Vehicle>,
+        drivers: List<Driver>,
+        bookings: List<Booking>,
+        displayName: String,
+        earningsToday: Double,
+        earningsWeek: Double,
+        earningsMonth: Double,
+        onTimePct: Int,
+        hasCriticalError: Boolean,
+        shouldShowNotification: Boolean
+    ) {
+        val activeJobs = bookings
+            .filter { it.status == BookingStatus.ACTIVE || it.status == BookingStatus.CONFIRMED }
+            .sortedByDescending { it.createdAt }
+
+        val newRequests = bookings
+            .filter { it.status == BookingStatus.SEARCHING }
+            .sortedByDescending { it.createdAt }
+
         val requestItems = newRequests.take(2).map { booking ->
             ProviderNewRequestUi(
                 bookingId = booking.id,
@@ -174,7 +319,18 @@ class ProviderDashboardViewModel @Inject constructor(
             )
         }
 
-        val hasCriticalError = providerResult.isFailure && vehiclesResult.isFailure && driversResult.isFailure && bookingsResult.isFailure
+        val trackingBooking = activeJobs.firstOrNull()
+        val trackingVehicleId = vehicles.firstOrNull()?.id
+
+        val previousNewRequestsCount = _state.value.newRequests.size
+        val currentNewRequestsCount = requestItems.size
+        val shouldEmitNotification = shouldShowNotification && previousNewRequestsCount > 0 && currentNewRequestsCount > previousNewRequestsCount
+        val notificationMessage = if (shouldEmitNotification) {
+            "New booking request received"
+        } else {
+            null
+        }
+
         _state.value = ProviderDashboardUiState(
             isLoading = false,
             providerDisplayName = displayName,
@@ -189,8 +345,23 @@ class ProviderDashboardViewModel @Inject constructor(
             onTimePercent = onTimePct,
             newRequests = requestItems,
             activeJobs = activeItems,
+            activeTrackingBookingId = trackingBooking?.id,
+            activeTrackingUserId = trackingBooking?.userId,
+            activeTrackingVehicleId = trackingVehicleId,
+            showNewRequestNotification = shouldEmitNotification,
+            newRequestNotificationMessage = notificationMessage,
             errorMessage = if (hasCriticalError) "Unable to load provider dashboard." else null
         )
+    }
+
+    private fun computeOnTimePercent(bookings: List<Booking>): Int {
+        val completed = bookings.filter { it.status == BookingStatus.COMPLETED }
+        val completedVerified = completed.count { it.isOtpVerified }
+        return if (completed.isNotEmpty()) {
+            (completedVerified * 100) / completed.size
+        } else {
+            0
+        }
     }
 
     private fun sumEarningsSince(bookings: List<Booking>, since: ZonedDateTime): Double {
@@ -254,6 +425,11 @@ data class ProviderDashboardUiState(
     val onTimePercent: Int = 0,
     val newRequests: List<ProviderNewRequestUi> = emptyList(),
     val activeJobs: List<ProviderActiveJobUi> = emptyList(),
+    val activeTrackingBookingId: String? = null,
+    val activeTrackingUserId: String? = null,
+    val activeTrackingVehicleId: String? = null,
+    val showNewRequestNotification: Boolean = false,
+    val newRequestNotificationMessage: String? = null,
     val errorMessage: String? = null
 )
 

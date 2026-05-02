@@ -7,9 +7,14 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.tasks.CancellationTokenSource
+import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.math.atan2
@@ -27,6 +32,40 @@ object LocationUtils {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun decodePolyline(encoded: String): List<LatLng> {
+        val poly = ArrayList<LatLng>()
+        var index = 0
+        var lat = 0
+        var lng = 0
+
+        while (index < encoded.length) {
+            var b: Int
+            var shift = 0
+            var result = 0
+            do {
+                b = encoded[index++].code - 63
+                result = result or ((b and 0x1f) shl shift)
+                shift += 5
+            } while (b >= 0x20)
+            val dlat = if (result and 1 != 0) (result shr 1).inv() else (result shr 1)
+            lat += dlat
+
+            shift = 0
+            result = 0
+            do {
+                b = encoded[index++].code - 63
+                result = result or ((b and 0x1f) shl shift)
+                shift += 5
+            } while (b >= 0x20)
+            val dlng = if (result and 1 != 0) (result shr 1).inv() else (result shr 1)
+            lng += dlng
+
+            poly.add(LatLng(lat / 1E5, lng / 1E5))
+        }
+
+        return poly
     }
 
     private fun ensurePlacesInitialized(context: Context) {
@@ -180,6 +219,94 @@ object LocationUtils {
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * Fetch a real route polyline from Google Directions API.
+     * Falls back to an empty list if the route cannot be loaded.
+     */
+    suspend fun fetchRoutePolyline(context: Context, origin: LatLng, destination: LatLng): List<LatLng> = withContext(Dispatchers.IO) {
+        val apiKey = getApiKeyFromMeta(context) ?: return@withContext emptyList()
+        val urlString = buildString {
+            append("https://maps.googleapis.com/maps/api/directions/json?")
+            append("origin=").append(origin.latitude).append(',').append(origin.longitude)
+            append("&destination=").append(destination.latitude).append(',').append(destination.longitude)
+            append("&mode=driving&alternatives=false&overview=full&departure_time=now&key=").append(apiKey)
+        }
+
+        try {
+            val connection = (URL(urlString).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 10_000
+                readTimeout = 10_000
+            }
+
+            val responseBody = connection.inputStream.bufferedReader().use(BufferedReader::readText)
+            connection.disconnect()
+
+            val json = JSONObject(responseBody)
+            val routes = json.optJSONArray("routes") ?: return@withContext emptyList()
+            if (routes.length() == 0) return@withContext emptyList()
+
+            val routeObj = routes.getJSONObject(0)
+            val overviewPolyline = routeObj
+                .optJSONObject("overview_polyline")
+                ?.optString("points")
+                .orEmpty()
+
+            if (overviewPolyline.isBlank()) {
+                emptyList()
+            } else {
+                decodePolyline(overviewPolyline)
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    data class RouteOverview(val points: List<LatLng>, val durationSeconds: Long?)
+
+    /**
+     * Fetch route polyline and duration from Directions API. Returns points and duration in seconds when available.
+     */
+    suspend fun fetchRouteOverview(context: Context, origin: LatLng, destination: LatLng): RouteOverview = withContext(Dispatchers.IO) {
+        val apiKey = getApiKeyFromMeta(context) ?: return@withContext RouteOverview(emptyList(), null)
+        val urlString = buildString {
+            append("https://maps.googleapis.com/maps/api/directions/json?")
+            append("origin=").append(origin.latitude).append(',').append(origin.longitude)
+            append("&destination=").append(destination.latitude).append(',').append(destination.longitude)
+            append("&mode=driving&alternatives=false&overview=full&departure_time=now&key=").append(apiKey)
+        }
+
+        try {
+            val connection = (URL(urlString).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 10_000
+                readTimeout = 10_000
+            }
+
+            val responseBody = connection.inputStream.bufferedReader().use(BufferedReader::readText)
+            connection.disconnect()
+
+            val json = JSONObject(responseBody)
+            val routes = json.optJSONArray("routes") ?: return@withContext RouteOverview(emptyList(), null)
+            if (routes.length() == 0) return@withContext RouteOverview(emptyList(), null)
+
+            val routeObj = routes.getJSONObject(0)
+            val overviewPolyline = routeObj.optJSONObject("overview_polyline")?.optString("points").orEmpty()
+
+            val legs = routeObj.optJSONArray("legs")
+            var durationSeconds: Long? = null
+            if (legs != null && legs.length() > 0) {
+                val leg = legs.getJSONObject(0)
+                durationSeconds = leg.optJSONObject("duration")?.optLong("value")
+            }
+
+            val points = if (overviewPolyline.isBlank()) emptyList() else decodePolyline(overviewPolyline)
+            RouteOverview(points = points, durationSeconds = durationSeconds)
+        } catch (_: Exception) {
+            RouteOverview(emptyList(), null)
         }
     }
 
