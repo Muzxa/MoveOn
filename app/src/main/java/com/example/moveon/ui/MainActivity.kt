@@ -413,17 +413,7 @@ class MainActivity : ComponentActivity() {
                             boxUuid = boxUuid,
                             boxId = boxId,
                             onBack = { navController.popBackStack() },
-                            onItemSaved = {
-                                navController.navigate(
-                                    Screen.BoxItems.createRoute(
-                                        boxUuid = boxUuid,
-                                        scannedFromQr = false
-                                    )
-                                ) {
-                                    popUpTo(Screen.AddItemCamera.route) { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                            }
+                            onItemSaved = { navController.popBackStack() }
                         )
                     }
 

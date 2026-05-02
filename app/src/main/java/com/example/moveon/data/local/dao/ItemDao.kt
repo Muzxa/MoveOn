@@ -22,9 +22,23 @@ interface ItemDao{
     @Query("SELECT COALESCE(SUM(quantity), 0) FROM items WHERE is_fragile = 1")
     fun getTotalFragileItemsCount(): Flow<Int>
 
+    @Query(
+        """
+        SELECT box_id AS boxId, COALESCE(SUM(quantity), 0) AS itemCount
+        FROM items
+        GROUP BY box_id
+        """
+    )
+    fun getItemCountsByBox(): Flow<List<BoxItemCount>>
+
     @Update
     suspend fun updateItem(item: ItemEntity)
 
     @Delete
     suspend fun deleteItem(item: ItemEntity)
 }
+
+data class BoxItemCount(
+    val boxId: String,
+    val itemCount: Int
+)

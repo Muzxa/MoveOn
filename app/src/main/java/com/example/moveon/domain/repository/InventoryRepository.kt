@@ -33,6 +33,7 @@ interface InventoryRepository {
     fun getItemsInBox(boxId: String): Flow<List<Item>>
     fun getTotalItemsCount(): Flow<Int>
     fun getTotalFragileItemsCount(): Flow<Int>
+    fun getItemCountsByBox(): Flow<Map<String, Int>>
     suspend fun addItemToInventory(item: Item)
     suspend fun updateItemInInventory(item: Item)
     suspend fun deleteItemFromInventory(item: Item)

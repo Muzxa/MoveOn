@@ -1,6 +1,7 @@
 package com.example.moveon.data.repository
 
 import com.example.moveon.data.local.dao.BoxDao
+import com.example.moveon.data.local.dao.BoxItemCount
 import com.example.moveon.data.local.dao.ItemDao
 import com.example.moveon.data.mapper.toDomainModel
 import com.example.moveon.data.mapper.toEntity
@@ -269,6 +270,12 @@ class InventoryRepositoryImpl @Inject constructor(
 
     override fun getTotalFragileItemsCount(): Flow<Int> {
         return itemDao.getTotalFragileItemsCount()
+    }
+
+    override fun getItemCountsByBox(): Flow<Map<String, Int>> {
+        return itemDao.getItemCountsByBox().map { counts ->
+            counts.associate { it.boxId to it.itemCount }
+        }
     }
 
     override suspend fun addItemToInventory(item: Item) {

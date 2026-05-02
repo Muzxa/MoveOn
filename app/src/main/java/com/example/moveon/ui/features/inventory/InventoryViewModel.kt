@@ -38,6 +38,7 @@ class InventoryViewModel @Inject constructor(
     init {
         observeBoxes()
         observeItemCounts()
+        observeBoxItemCounts()
     }
 
     fun onEvent(event: InventoryEvent) {
@@ -243,6 +244,17 @@ class InventoryViewModel @Inject constructor(
             inventoryRepository.getTotalFragileItemsCount()
                 .collect { count ->
                     _uiState.value = _uiState.value.copy(totalFragileItemsCount = count)
+                }
+        }
+    }
+
+    private fun observeBoxItemCounts() {
+        viewModelScope.launch {
+            inventoryRepository.getItemCountsByBox()
+                .collect { counts ->
+                    _uiState.value = _uiState.value.copy(
+                        itemCountsByBoxId = counts
+                    )
                 }
         }
     }
@@ -508,6 +520,7 @@ data class InventoryUiState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val storedBoxes: List<StoredInventoryBox> = emptyList(),
+    val itemCountsByBoxId: Map<String, Int> = emptyMap(),
     val totalItemsCount: Int = 0,
     val totalFragileItemsCount: Int = 0
 )
