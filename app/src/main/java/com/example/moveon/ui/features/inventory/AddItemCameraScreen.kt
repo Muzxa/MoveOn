@@ -3,12 +3,14 @@ package com.example.moveon.ui.features.inventory
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -42,6 +44,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,13 +65,18 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.moveon.ui.components.MoveOnPillButton
+import com.example.moveon.ui.components.ObjectDetectionOverlayView
 import com.example.moveon.ui.theme.LightBorder
 import com.example.moveon.ui.theme.LightSurface
 import com.example.moveon.ui.theme.LightSurfaceVariant
 import com.example.moveon.ui.theme.LightTextPrimary
 import com.example.moveon.ui.theme.LightTextSecondary
 import com.example.moveon.ui.theme.Primary
+import org.tensorflow.lite.task.core.BaseOptions
+import org.tensorflow.lite.task.vision.detector.ObjectDetector
 import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 @Composable
 fun AddItemCameraScreen(
@@ -85,6 +93,17 @@ fun AddItemCameraScreen(
     var capturedImageUri by remember { mutableStateOf<String?>(null) }
     var isCapturingImage by remember { mutableStateOf(false) }
     var showLogDialog by remember { mutableStateOf(false) }
+    val overlayView = remember { ObjectDetectionOverlayView(context) }
+    val objectDetector = remember { createObjectDetector(context) }
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    DisposableEffect(Unit) {
+        onDispose { cameraExecutor.shutdown() }
+    }
+
+    DisposableEffect(objectDetector) {
+        onDispose { objectDetector?.close() }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -115,10 +134,25 @@ fun AddItemCameraScreen(
         }
     }
 
+    LaunchedEffect(objectDetector) {
+        if (objectDetector == null) {
+            Log.e(TAG, "Object detector failed to initialize. Ensure detect.tflite is in assets.")
+        }
+    }
+
+    LaunchedEffect(hasCameraPermission.value, objectDetector) {
+        if (!hasCameraPermission.value || objectDetector == null) {
+            overlayView.clear()
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (hasCameraPermission.value) {
             AddItemCameraPreview(
                 lifecycleOwner = lifecycleOwner,
+                cameraExecutor = cameraExecutor,
+                overlayView = overlayView,
+                objectDetector = objectDetector,
                 onImageCaptureReady = { imageCapture = it }
             )
         } else {
@@ -145,6 +179,13 @@ fun AddItemCameraScreen(
                     )
                 )
         )
+
+        if (hasCameraPermission.value && objectDetector != null) {
+            AndroidView(
+                factory = { overlayView },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         IconButton(
             onClick = onBack,
@@ -234,6 +275,9 @@ fun AddItemCameraScreen(
 @Composable
 private fun AddItemCameraPreview(
     lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+    cameraExecutor: ExecutorService,
+    overlayView: ObjectDetectionOverlayView,
+    objectDetector: ObjectDetector?,
     onImageCaptureReady: (ImageCapture) -> Unit
 ) {
     val context = LocalContext.current
@@ -254,12 +298,31 @@ private fun AddItemCameraPreview(
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                     .build()
 
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+
+                if (objectDetector != null) {
+                    imageAnalysis.setAnalyzer(
+                        cameraExecutor,
+                        ObjectDetectionAnalyzer(
+                            context = context,
+                            detector = objectDetector,
+                            overlayView = overlayView
+                        )
+                    )
+                }
+
                 cameraProvider.unbindAll()
+                val useCases = if (objectDetector != null) {
+                    arrayOf(preview, imageCapture, imageAnalysis)
+                } else {
+                    arrayOf(preview, imageCapture)
+                }
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    imageCapture
+                    *useCases
                 )
                 onImageCaptureReady(imageCapture)
             }
@@ -269,10 +332,38 @@ private fun AddItemCameraPreview(
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { ctx ->
-            PreviewView(ctx).also { previewViewRef.value = it }
+            PreviewView(ctx).also {
+                it.scaleType = PreviewView.ScaleType.FILL_CENTER
+                previewViewRef.value = it
+            }
         }
     )
 }
+
+private fun createObjectDetector(context: android.content.Context): ObjectDetector? {
+    return try {
+        val baseOptions = BaseOptions.builder()
+            .setNumThreads(2)
+            .build()
+        val options = ObjectDetector.ObjectDetectorOptions.builder()
+            .setBaseOptions(baseOptions)
+            .setMaxResults(5)
+            .setScoreThreshold(0.5f)
+            .build()
+
+        ObjectDetector.createFromFileAndOptions(
+            context,
+            MODEL_FILE_NAME,
+            options
+        )
+    } catch (exception: Exception) {
+        Log.e(TAG, "Failed to initialize ObjectDetector", exception)
+        null
+    }
+}
+
+private const val MODEL_FILE_NAME = "efficientdet_lite0.tflite"
+private const val TAG = "AddItemCamera"
 
 @Composable
 fun AddItemDialog(
