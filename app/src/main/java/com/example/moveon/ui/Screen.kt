@@ -27,10 +27,19 @@ sealed class Screen (val route: String) {
     }
     object Profile : Screen("profile")
     object ProviderProfile : Screen("provider_profile")
+    object EditProfile : Screen("edit_profile")
+    object SavedAddresses : Screen("saved_addresses")
+    object MoveHistory : Screen("move_history")
+    object TrackBooking : Screen("track_booking/{bookingId}") {
+        fun createRoute(bookingId: String): String = "track_booking/$bookingId"
+    }
     object Settings : Screen("settings")
+    object AppSettings : Screen("app_settings")
     object Security : Screen("security")
+    object VerifyIdentity : Screen("verify_identity")
     object SecurityOtp : Screen("security_otp/{method}") {
         fun createRoute(method: String): String = "security_otp/$method"
     }
+    object NewPassword : Screen("new_password")
     object SecurityUpdated : Screen("security_updated")
 }
