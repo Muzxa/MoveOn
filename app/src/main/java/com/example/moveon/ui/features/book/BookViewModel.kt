@@ -267,13 +267,15 @@ class BookViewModel @Inject constructor(
 
     fun onPrimaryAction() {
         val snapshot = _state.value
-        if (snapshot.currentStep < TOTAL_STEPS) {
-            onStepAdvance()
+        val booking = snapshot.createdBooking
+        // Tracking flow: primary button shows "View OTP" — never run step validation then.
+        if (booking != null && booking.status != BookingStatus.COMPLETED) {
+            openOtpDialog()
             return
         }
 
-        if (snapshot.createdBooking != null) {
-            openOtpDialog()
+        if (snapshot.currentStep < TOTAL_STEPS) {
+            onStepAdvance()
             return
         }
 
