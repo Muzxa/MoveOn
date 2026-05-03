@@ -79,6 +79,26 @@ class LogisticsRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun createDriver(driver: Driver): Result<Driver> {
+        return runCatching {
+            firebaseService.createDriver(driver.toDto())
+                .toDomainModel()
+        }
+    }
+
+    override suspend fun updateDriver(driver: Driver): Result<Driver> {
+        return runCatching {
+            firebaseService.updateDriver(driver.toDto())
+                .toDomainModel()
+        }
+    }
+
+    override suspend fun deleteDriver(driverId: String): Result<Unit> {
+        return runCatching {
+            firebaseService.deleteDriver(driverId)
+        }
+    }
+
     override suspend fun getBookingsForProvider(providerId: String): Result<List<Booking>> {
         return runCatching {
             firebaseService.getBookingsForProvider(providerId)
