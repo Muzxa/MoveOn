@@ -77,6 +77,7 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     onNavigateToRegister: () -> Unit = {},
     onNavigateToHome: (UserRole) -> Unit = {},
+    onForgotPassword: (String) -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val authState by viewModel.authState
@@ -204,7 +205,7 @@ fun LoginScreen(
                         Checkbox(checked = rememberMe, onCheckedChange = { rememberMe = it })
                         Text("Remember me", color = LightTextSecondary)
                     }
-                    TextButton(onClick = { }) {
+                    TextButton(onClick = { onForgotPassword(email) }) {
                         Text("Forgot Password?", color = Primary)
                     }
                 }

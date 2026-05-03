@@ -245,6 +245,15 @@ class FirebaseService @Inject constructor(
             .toObjects(BookingDto::class.java)
     }
 
+    suspend fun getBookingById(bookingId: String): BookingDto? {
+        return firestore.collection("bookings")
+            .document(bookingId)
+            .get()
+            .await()
+            .toObject(BookingDto::class.java)
+            ?.copy(booking_id = bookingId)
+    }
+
     suspend fun getProviderById(providerId: String): ProviderDto? {
         return firestore.collection("providers")
             .document(providerId)

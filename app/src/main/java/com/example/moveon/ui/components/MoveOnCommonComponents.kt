@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,7 +40,9 @@ fun MoveOnPillButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(36.dp),
+        modifier = modifier
+            .height(36.dp)
+            .alpha(if (enabled) 1f else 0.5f),
         colors = ButtonDefaults.buttonColors(containerColor = background),
         shape = RoundedCornerShape(20.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
