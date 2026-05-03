@@ -204,10 +204,17 @@ class AuthRepositoryImpl @Inject constructor(
         lName: String,
         pNumber: String,
         establishmentName: String,
-        baseRate: Double,
-        ratePerKm: Double,
         businessLat: Double,
-        businessLng: Double
+        businessLng: Double,
+        vehicleMake: String,
+        vehicleModel: String,
+        vehicleYear: String,
+        vehicleColor: String,
+        plateNumber: String,
+        maxCapacityKg: Double,
+        maxVolumeM3: Double,
+        baseRate: Double,
+        ratePerKm: Double
     ): Result<User> {
         return try {
             val firebaseUser = getOrCreateAuthUser(email, pass, "Provider registration failed")
@@ -225,18 +232,38 @@ class AuthRepositoryImpl @Inject constructor(
             val providerDto = ProviderDto(
                 provider_id = firebaseUser.uid,
                 establishment_name = establishmentName,
-                base_rate = baseRate,
-                rate_per_km = ratePerKm,
                 is_verified = false,
                 rating = 0.0,
                 business_lat = businessLat,
                 business_lng = businessLng
             )
 
-            // Batch write to ensure both documents are created
+            val vehicleId = java.util.UUID.randomUUID().toString()
+            val vehicleType = com.example.moveon.util.VehicleCategoryHelper.determineCategory(maxVolumeM3, maxCapacityKg)
+
+            val vehicleDto = com.moveon.app.data.remote.dto.VehicleDto(
+                vehicle_id = vehicleId,
+                provider_id = firebaseUser.uid,
+                type = vehicleType,
+                make = vehicleMake,
+                model = vehicleModel,
+                year = vehicleYear,
+                color = vehicleColor,
+                plate_number = plateNumber,
+                max_capacity = maxCapacityKg,
+                max_volume = maxVolumeM3,
+                base_rate = baseRate,
+                rate_per_km = ratePerKm,
+                current_lat = businessLat,
+                current_lng = businessLng,
+                is_available = true
+            )
+
+            // Batch write to ensure all documents are created
             firebaseFirestore.runBatch { batch ->
                 batch.set(firebaseFirestore.collection("users").document(firebaseUser.uid), userDto)
                 batch.set(firebaseFirestore.collection("providers").document(firebaseUser.uid), providerDto)
+                batch.set(firebaseFirestore.collection("vehicles").document(vehicleId), vehicleDto)
             }.await()
 
             val user = userDto.toDomainModel()

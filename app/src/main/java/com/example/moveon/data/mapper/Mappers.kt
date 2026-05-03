@@ -92,7 +92,7 @@ fun BookingDto.toDomainModel(): Booking = Booking(
     createdAt = this.created_at,
     scheduledTime = this.scheduled_time,
     rating = this.rating,
-    vehicles = emptyList() // Populated separately via BookingVehicle query
+    vehicles = this.vehicles.map { it.toDomainModel() }
 )
 
 fun Booking.toDto(): BookingDto = BookingDto(
@@ -116,7 +116,8 @@ fun Booking.toDto(): BookingDto = BookingDto(
     otp_verified = this.isOtpVerified,
     created_at = this.createdAt,
     scheduled_time = this.scheduledTime,
-    rating = this.rating
+    rating = this.rating,
+    vehicles = this.vehicles.map { it.toDto() }
 )
 
 // Vehicle Mappings
@@ -126,9 +127,13 @@ fun VehicleDto.toDomainModel(): Vehicle = Vehicle(
     type = this.type,
     make = this.make,
     model = this.model,
+    year = this.year,
+    color = this.color,
     plateNumber = this.plate_number,
     maxCapacityKg = this.max_capacity,
     maxVolumeKg = this.max_volume,
+    baseRate = this.base_rate,
+    ratePerKm = this.rate_per_km,
     currentLat = this.current_lat,
     currentLng = this.current_lng,
     isAvailable = this.is_available
@@ -140,9 +145,13 @@ fun Vehicle.toDto(): VehicleDto = VehicleDto(
     type = this.type,
     make = this.make,
     model = this.model,
+    year = this.year,
+    color = this.color,
     plate_number = this.plateNumber,
     max_capacity = this.maxCapacityKg,
     max_volume = this.maxVolumeKg,
+    base_rate = this.baseRate,
+    rate_per_km = this.ratePerKm,
     current_lat = this.currentLat,
     current_lng = this.currentLng,
     is_available = this.isAvailable
@@ -154,8 +163,6 @@ fun ProviderDto.toDomainModel(): Provider = Provider(
     establishmentName = this.establishment_name,
     isVerified = this.is_verified,
     rating = this.rating,
-    baseRate = this.base_rate,
-    ratePerKm = this.rate_per_km,
     businessLat = this.business_lat,
     businessLng = this.business_lng,
     phoneNumber = ""
@@ -166,8 +173,6 @@ fun Provider.toDto(): ProviderDto = ProviderDto(
     establishment_name = this.establishmentName,
     is_verified = this.isVerified,
     rating = this.rating,
-    base_rate = this.baseRate,
-    rate_per_km = this.ratePerKm,
     business_lat = this.businessLat,
     business_lng = this.businessLng
 )

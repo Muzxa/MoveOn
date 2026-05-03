@@ -16,5 +16,6 @@ data class BookingDto(
     val otp_verified: Boolean = false,
     val created_at: Long = 0L,
     val scheduled_time: Long = 0L,
-    val rating: Float = 0F
+    val rating: Float = 0F,
+    val vehicles: List<BookingVehicleDto> = emptyList()
 )

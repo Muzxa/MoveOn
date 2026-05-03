@@ -42,12 +42,34 @@ class ProviderVehiclesViewModel @Inject constructor(
             is VehiclesEvent.OpenEditForm -> openEditForm(event.vehicle)
             VehiclesEvent.CloseForm -> closeForm()
             is VehiclesEvent.TypeChanged -> updateForm { copy(type = event.value) }
-            is VehiclesEvent.PlateChanged -> updateForm { copy(plateNumber = event.value) }
+            is VehiclesEvent.IsMultipleChanged -> updateForm { copy(isMultiple = event.value) }
+            is VehiclesEvent.PlateNumberChanged -> updateForm {
+                val newPlates = plateNumbers.toMutableList()
+                newPlates[event.index] = event.value
+                copy(plateNumbers = newPlates)
+            }
+            is VehiclesEvent.AddPlateNumber -> updateForm {
+                val newPlates = plateNumbers.toMutableList()
+                newPlates.add("")
+                copy(plateNumbers = newPlates)
+            }
+            is VehiclesEvent.RemovePlateNumber -> updateForm {
+                if (plateNumbers.size > 1) {
+                    val newPlates = plateNumbers.toMutableList()
+                    newPlates.removeAt(event.index)
+                    copy(plateNumbers = newPlates)
+                } else this
+            }
             is VehiclesEvent.CapacityChanged -> updateForm { copy(capacityKg = event.value) }
             is VehiclesEvent.VolumeChanged -> updateForm { copy(volumeKg = event.value) }
             is VehiclesEvent.MakeChanged -> updateForm { copy(make = event.value) }
             is VehiclesEvent.ModelChanged -> updateForm { copy(model = event.value) }
+            is VehiclesEvent.YearChanged -> updateForm { copy(year = event.value) }
+            is VehiclesEvent.ColorChanged -> updateForm { copy(color = event.value) }
+            is VehiclesEvent.BaseRateChanged -> updateForm { copy(baseRate = event.value) }
+            is VehiclesEvent.RatePerKmChanged -> updateForm { copy(ratePerKm = event.value) }
             is VehiclesEvent.AvailabilityChanged -> updateForm { copy(isAvailable = event.value) }
+            is VehiclesEvent.TabChanged -> _uiState.value = _uiState.value.copy(selectedTab = event.tab)
             VehiclesEvent.SaveVehicle -> saveVehicle()
             is VehiclesEvent.PromptDelete -> _uiState.value = _uiState.value.copy(deleteCandidate = event.vehicle)
             VehiclesEvent.DismissDelete -> _uiState.value = _uiState.value.copy(deleteCandidate = null)
@@ -102,11 +124,16 @@ class ProviderVehiclesViewModel @Inject constructor(
             form = VehicleFormState(
                 id = vehicle.id,
                 type = vehicle.type,
-                plateNumber = vehicle.plateNumber,
+                isMultiple = false,
+                plateNumbers = listOf(vehicle.plateNumber),
                 capacityKg = vehicle.maxCapacityKg.takeIf { it > 0.0 }?.toString() ?: "",
                 volumeKg = vehicle.maxVolumeKg.takeIf { it > 0.0 }?.toString() ?: "",
                 make = vehicle.make,
                 model = vehicle.model,
+                year = vehicle.year,
+                color = vehicle.color,
+                baseRate = vehicle.baseRate.takeIf { it > 0.0 }?.toString() ?: "",
+                ratePerKm = vehicle.ratePerKm.takeIf { it > 0.0 }?.toString() ?: "",
                 isAvailable = vehicle.isAvailable
             ),
             errorMessage = null
@@ -130,54 +157,72 @@ class ProviderVehiclesViewModel @Inject constructor(
         }
 
         val form = _uiState.value.form
-        val type = form.type.trim()
-        val plate = form.plateNumber.trim()
-        val capacity = form.capacityKg.trim().toDoubleOrNull()
+        val validPlates = form.plateNumbers.map { it.trim() }.filter { it.isNotBlank() }
+        val capacity = form.capacityKg.trim().toDoubleOrNull() ?: 0.0
         val volume = form.volumeKg.trim().toDoubleOrNull() ?: 0.0
+        val baseRate = form.baseRate.trim().toDoubleOrNull() ?: 0.0
+        val ratePerKm = form.ratePerKm.trim().toDoubleOrNull() ?: 0.0
 
-        if (type.isBlank() || plate.isBlank() || capacity == null) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Type, plate number, and capacity are required.")
+        if (validPlates.isEmpty() || capacity <= 0.0) {
+            _uiState.value = _uiState.value.copy(errorMessage = "At least one plate number and valid capacity are required.")
             return
         }
 
-        val vehicle = Vehicle(
-            id = form.id ?: "",
-            providerId = user.id,
-            type = type,
-            make = form.make.trim(),
-            model = form.model.trim(),
-            plateNumber = plate,
-            maxCapacityKg = capacity,
-            maxVolumeKg = volume,
-            currentLat = 0.0,
-            currentLng = 0.0,
-            isAvailable = form.isAvailable
-        )
+        val computedType = com.example.moveon.util.VehicleCategoryHelper.determineCategory(volume, capacity)
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null)
-            val result = if (form.id == null) {
-                logisticsRepository.createVehicle(vehicle)
-            } else {
-                logisticsRepository.updateVehicle(vehicle)
+            val updatedList = _uiState.value.vehicles.toMutableList()
+            var errorOccurred = false
+
+            for (plate in validPlates) {
+                val vehicle = Vehicle(
+                    id = if (!form.isMultiple && form.id != null) form.id else "",
+                    providerId = user.id,
+                    type = computedType,
+                    make = form.make.trim(),
+                    model = form.model.trim(),
+                    year = form.year.trim(),
+                    color = form.color.trim(),
+                    plateNumber = plate,
+                    maxCapacityKg = capacity,
+                    maxVolumeKg = volume,
+                    baseRate = baseRate,
+                    ratePerKm = ratePerKm,
+                    currentLat = 0.0,
+                    currentLng = 0.0,
+                    isAvailable = form.isAvailable
+                )
+
+                val result = if (vehicle.id.isEmpty()) {
+                    logisticsRepository.createVehicle(vehicle.copy(id = java.util.UUID.randomUUID().toString()))
+                } else {
+                    logisticsRepository.updateVehicle(vehicle)
+                }
+
+                if (result.isSuccess) {
+                    val saved = result.getOrNull() ?: vehicle
+                    val existingIndex = updatedList.indexOfFirst { it.id == saved.id }
+                    if (existingIndex >= 0) {
+                        updatedList[existingIndex] = saved
+                    } else {
+                        updatedList.add(saved)
+                    }
+                } else {
+                    errorOccurred = true
+                }
             }
 
-            if (result.isSuccess) {
-                val saved = result.getOrNull() ?: vehicle
-                val updatedList = if (form.id == null) {
-                    _uiState.value.vehicles + saved
-                } else {
-                    _uiState.value.vehicles.map { if (it.id == saved.id) saved else it }
-                }
+            if (errorOccurred) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    isFormVisible = false,
-                    vehicles = updatedList
+                    errorMessage = "Some vehicles could not be saved."
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    errorMessage = "Unable to save vehicle."
+                    isFormVisible = false,
+                    vehicles = updatedList
                 )
             }
         }

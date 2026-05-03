@@ -9,6 +9,7 @@ import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.moveon.app.data.remote.dto.BookingDto
+import com.moveon.app.data.remote.dto.BookingVehicleDto
 import com.moveon.app.data.remote.dto.DriverDto
 import com.moveon.app.data.remote.dto.ProviderDto
 import com.moveon.app.data.remote.dto.VehicleDto
@@ -149,6 +150,22 @@ class FirebaseService @Inject constructor(
             updates["provider_id"] = providerId
         }
         firestore.collection("bookings").document(bookingId)
+            .update(updates)
+            .await()
+    }
+
+    suspend fun assignVehicleAndDriverToBooking(
+        bookingId: String,
+        providerId: String,
+        assignment: BookingVehicleDto
+    ) {
+        val updates = mapOf(
+            "status" to "Confirmed",
+            "provider_id" to providerId,
+            "vehicles" to listOf(assignment)
+        )
+        firestore.collection("bookings")
+            .document(bookingId)
             .update(updates)
             .await()
     }

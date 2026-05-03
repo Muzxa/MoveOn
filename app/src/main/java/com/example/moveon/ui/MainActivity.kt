@@ -286,10 +286,17 @@ class MainActivity : ComponentActivity() {
                                             lName = lastName,
                                             pNumber = authFlowViewModel.phoneNumber,
                                             establishmentName = authFlowViewModel.businessName,
-                                            baseRate = authFlowViewModel.baseRate.toDoubleOrNull() ?: 0.0,
-                                            ratePerKm = authFlowViewModel.ratePerKm.toDoubleOrNull() ?: 0.0,
                                             businessLat = authFlowViewModel.businessLat ?: 0.0,
-                                            businessLng = authFlowViewModel.businessLng ?: 0.0
+                                            businessLng = authFlowViewModel.businessLng ?: 0.0,
+                                            vehicleMake = authFlowViewModel.vehicleMake,
+                                            vehicleModel = authFlowViewModel.vehicleModel,
+                                            vehicleYear = authFlowViewModel.vehicleYear,
+                                            vehicleColor = authFlowViewModel.vehicleColor,
+                                            plateNumber = authFlowViewModel.plateNumber,
+                                            maxCapacityKg = authFlowViewModel.maxCapacityKg.toDoubleOrNull() ?: 0.0,
+                                            maxVolumeM3 = authFlowViewModel.maxVolumeM3.toDoubleOrNull() ?: 0.0,
+                                            baseRate = authFlowViewModel.baseRate.toDoubleOrNull() ?: 0.0,
+                                            ratePerKm = authFlowViewModel.ratePerKm.toDoubleOrNull() ?: 0.0
                                         )
                                     )
                                 }
@@ -453,8 +460,8 @@ class MainActivity : ComponentActivity() {
                                     }
 
                                     ProviderDashboardTab.Profile -> Unit
-                                    ProviderDashboardTab.Vehicles,
-                                    ProviderDashboardTab.Jobs -> {
+                                    ProviderDashboardTab.Fleet,
+                                    ProviderDashboardTab.Drivers -> {
                                         navController.navigate(Screen.ProviderDashboard.route) {
                                             launchSingleTop = true
                                         }

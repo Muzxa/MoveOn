@@ -319,11 +319,14 @@ fun BookScreen(
                 }
 
                 BookActionFooter(
-                    primaryLabel = if (createdBooking != null) "View OTP"
-                    else if (state.currentStep < BookViewModel.TOTAL_STEPS) "Next"
-                    else if (state.isSubmittingBooking) "Confirming..."
-                    else "Confirm Booking",
-                    onPrimaryClick = { viewModel.onPrimaryAction() },
+                    primaryLabel = when {
+                        createdBooking?.status == BookingStatus.COMPLETED -> "Trip Completed"
+                        createdBooking != null -> "View OTP"
+                        state.currentStep < BookViewModel.TOTAL_STEPS -> "Next"
+                        state.isSubmittingBooking -> "Confirming..."
+                        else -> "Confirm Booking"
+                    },
+                    onPrimaryClick = { if (createdBooking?.status != BookingStatus.COMPLETED) viewModel.onPrimaryAction() },
                     secondaryLabel = when {
                         createdBooking != null -> "Book Another Move"
                         state.currentStep > 1 -> "Back"
@@ -350,6 +353,16 @@ fun BookScreen(
     }
 
     if (state.showOtpDialog && createdBooking != null) {
+        var remainingSeconds by remember(createdBooking.id) { mutableStateOf(295) }
+        
+        LaunchedEffect(createdBooking.id) {
+            while (remainingSeconds > 0) {
+                kotlinx.coroutines.delay(1000)
+                remainingSeconds--
+            }
+        }
+        val timerText = "${remainingSeconds / 60}:${(remainingSeconds % 60).toString().padStart(2, '0')}"
+
         Dialog(onDismissRequest = viewModel::dismissOtpDialog) {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -374,7 +387,7 @@ fun BookScreen(
                             }
                         }
                     }
-                    Text(text = "Code expires in 4:55", style = MaterialTheme.typography.titleSmall, color = LightTextSecondary)
+                    Text(text = "Code expires in $timerText", style = MaterialTheme.typography.titleSmall, color = LightTextSecondary)
                     TextButton(onClick = viewModel::dismissOtpDialog) { Text("Done") }
                 }
             }
@@ -646,13 +659,13 @@ private fun Provider.toProviderCardUi(): BookProviderCardUi {
         ratingCount = (140 + seed % 140).toString(),
         movesLabel = "${180 + seed % 170} moves",
         etaLabel = when (seed % 3) { 0 -> "45 min"; 1 -> "< 10 min"; else -> "< 15 min" },
-        priceLabel = "Base ${formatPkr(baseRate)}"
+        priceLabel = "Variable Rates"
     )
 }
 
 private fun calculatePriceSummary(provider: Provider?, distanceKm: Double?): PriceSummary {
     if (provider == null || distanceKm == null || distanceKm <= 0.0) return PriceSummary(0.0, 0.0, 500.0)
-    return PriceSummary(baseRate = provider.baseRate, distanceCharge = provider.ratePerKm * distanceKm, serviceFee = 500.0)
+    return PriceSummary(baseRate = 500.0, distanceCharge = 25.0 * distanceKm, serviceFee = 500.0)
 }
 
 private fun formatPkr(value: Double): String = "PKR ${DecimalFormat("#,###").format(value)}"

@@ -3,12 +3,14 @@ package com.example.moveon.data.repository
 import com.example.moveon.data.mapper.toDomainModel
 import com.example.moveon.data.mapper.toDto
 import com.example.moveon.domain.model.BookingStatus
+import com.example.moveon.domain.model.BookingVehicle
 import com.example.moveon.data.remote.FirebaseService
 import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.domain.model.TripActorType
 import com.example.moveon.domain.model.TripLocation
+import com.example.moveon.domain.model.User
 import com.example.moveon.domain.model.Vehicle
 import com.example.moveon.domain.repository.LogisticsRepository
 import com.google.android.gms.maps.model.LatLng
@@ -34,6 +36,12 @@ class LogisticsRepositoryImpl @Inject constructor(
                 val phone = userDto?.phone_number ?: ""
                 provider.copy(phoneNumber = phone)
             } else null
+        }
+    }
+
+    override suspend fun getUserById(userId: String): Result<User?> {
+        return runCatching {
+            firebaseService.getUserById(userId)?.toDomainModel()
         }
     }
 
@@ -91,6 +99,26 @@ class LogisticsRepositoryImpl @Inject constructor(
 
     override suspend fun confirmBookingById(bookingId: String, providerId: String) {
         firebaseService.updateBookingStatus(bookingId, "Confirmed", providerId)
+    }
+
+    override suspend fun assignVehicleAndDriverToBooking(
+        bookingId: String,
+        providerId: String,
+        assignment: BookingVehicle
+    ) {
+        firebaseService.assignVehicleAndDriverToBooking(
+            bookingId = bookingId,
+            providerId = providerId,
+            assignment = assignment.toDto()
+        )
+    }
+
+    override suspend fun markBookingActive(bookingId: String) {
+        firebaseService.updateBookingStatus(bookingId, "Active")
+    }
+
+    override suspend fun markBookingCompleted(bookingId: String) {
+        firebaseService.updateBookingStatus(bookingId, "Completed")
     }
 
     override suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean {
