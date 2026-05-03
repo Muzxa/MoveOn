@@ -80,6 +80,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
 
 @Composable
 fun BookScreen(
@@ -429,6 +430,17 @@ private fun TripDetailsContent(
         provider != null && provider.businessLat != 0.0 -> LatLng(provider.businessLat, provider.businessLng)
         else -> LatLng(booking.pickupLat, booking.pickupLng)
     }
+    val etaFromLiveLocationLabel = vehiclePosition?.let { current ->
+        val target = if (booking.status == BookingStatus.ACTIVE) {
+            LatLng(booking.dropOffLat, booking.dropOffLng)
+        } else {
+            LatLng(booking.pickupLat, booking.pickupLng)
+        }
+        val remainingKm = LocationUtils.calculateDistanceKm(current, target)
+        val assumedSpeedKmh = 28.0
+        val etaMinutes = ceil((remainingKm / assumedSpeedKmh) * 60.0).toLong().coerceAtLeast(1L)
+        formatEpochToTime(System.currentTimeMillis() + etaMinutes * 60_000L)
+    }
 
     var routeToPickupPoints by remember(booking.id, routeOrigin) { mutableStateOf<List<LatLng>>(emptyList()) }
     var routeToDropoffPoints by remember(booking.id) { mutableStateOf<List<LatLng>>(emptyList()) }
@@ -536,7 +548,7 @@ private fun TripDetailsContent(
                 Icon(imageVector = Icons.Outlined.AccessTime, contentDescription = null, tint = Color.White)
             }
             Column {
-                val etaText = arrivalAtLabel ?: estimateEtaLabel(booking.scheduledTime)
+                val etaText = arrivalAtLabel ?: etaFromLiveLocationLabel ?: estimateEtaLabel(booking.scheduledTime)
                 Text(text = "Arriving at", style = MaterialTheme.typography.titleMedium, color = LightTextSecondary)
                 Text(text = etaText, style = MaterialTheme.typography.headlineLarge, color = Primary)
             }

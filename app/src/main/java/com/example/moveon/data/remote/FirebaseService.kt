@@ -50,18 +50,18 @@ class FirebaseService @Inject constructor(
     ) {
         val latestRef = realTimeDB.getReference("trip_locations/$bookingId/latest")
         val payload = mutableMapOf<String, Any>(
-            "bookingId" to bookingId,
+            "booking_id" to bookingId,
             "provider_id" to providerId,
             "user_id" to userId,
-            "actorId" to actorId,
-            "actorType" to actorType.name,
+            "actor_id" to actorId,
+            "actor_type" to actorType.name,
             "lat" to lat,
             "lng" to lng,
             "timestamp" to timestamp
         )
-        if (!vehicleId.isNullOrBlank()) payload["vehicleId"] = vehicleId
-        if (speedMps != null) payload["speedMps"] = speedMps
-        if (headingDeg != null) payload["headingDeg"] = headingDeg
+        if (!vehicleId.isNullOrBlank()) payload["vehicle_id"] = vehicleId
+        if (speedMps != null) payload["speed_mps"] = speedMps
+        if (headingDeg != null) payload["heading_deg"] = headingDeg
 
         latestRef.setValue(payload).await()
     }
@@ -81,13 +81,20 @@ class FirebaseService @Inject constructor(
                     return
                 }
                 Log.d("TripLocationListener", "[LOCATION_UPDATE] Booking: $bookingId, Lat: $lat, Lng: $lng")
-                val actorId = snapshot.child("actorId").getValue(String::class.java).orEmpty()
-                val actorTypeRaw = snapshot.child("actorType").getValue(String::class.java).orEmpty()
+                val actorId = snapshot.child("actor_id").getValue(String::class.java)
+                    ?: snapshot.child("actorId").getValue(String::class.java)
+                    .orEmpty()
+                val actorTypeRaw = snapshot.child("actor_type").getValue(String::class.java)
+                    ?: snapshot.child("actorType").getValue(String::class.java)
+                    .orEmpty()
                 val actorType = runCatching { TripActorType.valueOf(actorTypeRaw.uppercase()) }
                     .getOrDefault(TripActorType.PROVIDER)
-                val vehicleId = snapshot.child("vehicleId").getValue(String::class.java)
-                val speedMps = snapshot.child("speedMps").getValue(Double::class.java)
-                val headingDeg = snapshot.child("headingDeg").getValue(Double::class.java)
+                val vehicleId = snapshot.child("vehicle_id").getValue(String::class.java)
+                    ?: snapshot.child("vehicleId").getValue(String::class.java)
+                val speedMps = snapshot.child("speed_mps").getValue(Double::class.java)
+                    ?: snapshot.child("speedMps").getValue(Double::class.java)
+                val headingDeg = snapshot.child("heading_deg").getValue(Double::class.java)
+                    ?: snapshot.child("headingDeg").getValue(Double::class.java)
                 val timestamp = snapshot.child("timestamp").getValue(Long::class.java)
                     ?: System.currentTimeMillis()
 
