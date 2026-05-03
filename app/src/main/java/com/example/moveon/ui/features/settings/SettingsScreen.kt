@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -81,6 +82,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onTabSelected: (DashboardTab) -> Unit,
     onOpenSecurity: () -> Unit,
+    onOpenAppSettings: () -> Unit,
     isProviderMode: Boolean = false,
     onProviderTabSelected: (ProviderDashboardTab) -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
@@ -171,6 +173,58 @@ fun SettingsScreen(
                     checked = state.autoSyncEnabled,
                     onCheckedChange = viewModel::setAutoSyncEnabled
                 )
+                SectionDivider()
+                // App Settings action
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = LightSurface),
+                    border = BorderStroke(1.dp, LightBorder),
+                    shape = RoundedCornerShape(16.dp),
+                    onClick = onOpenAppSettings
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenAppSettings() }
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(LightSurfaceVariant, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Settings,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "App Settings",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = LightTextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Detailed app preferences",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = LightTextSecondary
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = LightTextSecondary
+                        )
+                    }
+                }
             }
 
             SectionTitle(title = "More Settings", icon = Icons.Outlined.Security)
@@ -279,10 +333,6 @@ fun SecurityScreen(
     onProviderTabSelected: (ProviderDashboardTab) -> Unit = {},
     viewModel: SecurityViewModel = hiltViewModel()
 ) {
-    val user = viewModel.currentUser.collectAsState().value
-    val emailLabel = maskEmail(user?.email.orEmpty())
-    val phoneLabel = maskPhone(user?.phoneNumber.orEmpty())
-
     Scaffold(
         containerColor = LightBackground,
         bottomBar = {
@@ -315,19 +365,45 @@ fun SecurityScreen(
 
             SectionTitle(title = "Security Options", icon = Icons.Outlined.Security)
             SectionCard {
-                SecurityOptionRow(
-                    title = "Email",
-                    subtitle = emailLabel,
-                    icon = Icons.Outlined.Email,
-                    onClick = { onOpenOtp("email") }
-                )
-                SectionDivider()
-                SecurityOptionRow(
-                    title = "SMS",
-                    subtitle = phoneLabel,
-                    icon = Icons.Outlined.LocationOn,
-                    onClick = { onOpenOtp("sms") }
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(Primary.copy(alpha = 0.08f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Password",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = LightTextPrimary
+                    )
+
+                    Text(
+                        text = "Change",
+                        modifier = Modifier
+                            .clickable { onOpenOtp("password") }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }
@@ -381,31 +457,24 @@ fun SecurityOtpScreen(
                 onBack = onBack
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = LightSurface),
-                border = BorderStroke(1.dp, LightBorder),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    OtpCodeInput(
-                        code = code,
-                        onCodeChange = { code = it }
-                    )
+            Spacer(modifier = Modifier.height(88.dp))
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Didn't receive the code?",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = LightTextSecondary
-                        )
-                        TextButton(onClick = { }) {
-                            Text(text = "Resend Code", color = Primary)
-                        }
-                    }
+            OtpCodeInput(
+                code = code,
+                onCodeChange = { code = it }
+            )
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Didn't receive the code?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = LightTextSecondary
+                )
+                TextButton(onClick = { }) {
+                    Text(text = "Resend Code", color = Primary)
                 }
             }
 
@@ -414,18 +483,11 @@ fun SecurityOtpScreen(
                 enabled = code.length == 6,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(36.dp),
-                shape = RoundedCornerShape(10.dp),
+                    .height(44.dp),
+                shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Verify", color = Color.White)
+                Text(text = "Verify", color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -464,7 +526,7 @@ fun PasswordUpdatedScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(160.dp))
 
             Box(
                 modifier = Modifier
@@ -490,7 +552,7 @@ fun PasswordUpdatedScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Your password has been successfully changed. You can now return to your settings and continue.",
+                    text = "Your password has been successfully changed. You can now use your new password to log in.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = LightTextSecondary,
                     textAlign = TextAlign.Center
@@ -502,18 +564,11 @@ fun PasswordUpdatedScreen(
                     onClick = onVerifyAgain,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(36.dp),
-                    shape = RoundedCornerShape(10.dp),
+                        .height(44.dp),
+                    shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Verify", color = Color.White)
+                    Text(text = "Back to Home", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
 
                 MoveOnOutlinedPillButton(
@@ -530,7 +585,7 @@ fun PasswordUpdatedScreen(
 }
 
 @Composable
-private fun TopHeader(
+fun TopHeader(
     title: String,
     subtitle: String,
     onBack: () -> Unit
@@ -808,7 +863,7 @@ private fun OtpCodeInput(
     )
 }
 
-private fun maskEmail(email: String): String {
+fun maskEmail(email: String): String {
     if (email.isBlank() || !email.contains("@")) return "a***@email.com"
     val parts = email.split("@")
     val local = parts.first()
@@ -817,7 +872,7 @@ private fun maskEmail(email: String): String {
     return "$prefix***@$domain"
 }
 
-private fun maskPhone(phone: String): String {
+fun maskPhone(phone: String): String {
     val digits = phone.filter(Char::isDigit)
     if (digits.length < 4) return "+92 *** ****"
     return "+${digits.take(3)} ${digits.drop(3).take(3)} *** ${digits.takeLast(4)}"

@@ -2,6 +2,9 @@ package com.example.moveon.ui.features.profile
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +23,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.Payment
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -57,7 +58,9 @@ fun ProfileScreen(
     onTabSelected: (DashboardTab) -> Unit,
     onNavigateToLogin: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenSecurity: () -> Unit,
+    onOpenEditProfile: () -> Unit,
+    onOpenSavedAddresses: () -> Unit,
+    onOpenMoveHistory: () -> Unit,
     isProviderMode: Boolean = false,
     onProviderTabSelected: (ProviderDashboardTab) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
@@ -101,7 +104,7 @@ fun ProfileScreen(
                 email = state.email.ifBlank { "No email available" },
                 photoUrl = state.profilePhotoUrl,
                 initials = state.initials,
-                memberSinceDate = "Jan 2024"
+                memberSinceDate = state.memberSinceDate
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -159,26 +162,20 @@ fun ProfileScreen(
                     MoveOnProfileActionRowItem(
                         title = "Edit Profile",
                         leadingIcon = Icons.Outlined.Edit,
-                        onClick = {},
+                        onClick = onOpenEditProfile,
                         showDivider = true
                     )
                     MoveOnProfileActionRowItem(
                         title = "Saved Addresses",
                         leadingIcon = Icons.Outlined.LocationOn,
-                        onClick = {},
+                        onClick = onOpenSavedAddresses,
                         showDivider = true
                     )
                     MoveOnProfileActionRowItem(
                         title = "Move History",
                         leadingIcon = Icons.Outlined.History,
-                        onClick = {},
+                        onClick = onOpenMoveHistory,
                         showDivider = true
-                    )
-                    MoveOnProfileActionRowItem(
-                        title = "Payment Methods",
-                        leadingIcon = Icons.Outlined.Payment,
-                        onClick = {},
-                        showDivider = false
                     )
                 }
             }
@@ -208,12 +205,6 @@ fun ProfileScreen(
                         title = "App Settings",
                         leadingIcon = Icons.Outlined.Settings,
                         onClick = onOpenSettings,
-                        showDivider = true
-                    )
-                    MoveOnProfileActionRowItem(
-                        title = "Privacy & Security",
-                        leadingIcon = Icons.Outlined.Lock,
-                        onClick = onOpenSecurity,
                         showDivider = false
                     )
                 }
@@ -221,29 +212,26 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Logout Button (Red Outlined)
-            OutlinedButton(
-                onClick = { if (!state.isLoading) viewModel.onEvent(ProfileEvent.Logout) },
+            // Logout pill (matches Figma): light background, red border/text, small height
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
-                border = BorderStroke(2.dp, ErrorDeep),
-                shape = RoundedCornerShape(8.dp)
+                    .height(36.dp)
+                    .background(LightBackground, shape = RoundedCornerShape(20.dp))
+                    .border(BorderStroke(1.117.dp, ErrorDeep), shape = RoundedCornerShape(20.dp))
+                    .clickable { if (!state.isLoading) viewModel.onEvent(ProfileEvent.Logout) },
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Logout,
-                        contentDescription = "Logout",
+                        contentDescription = null,
                         tint = ErrorDeep,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.padding(horizontal = 8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (state.isLoading) "Loading..." else "Logout",
+                        text = if (state.isLoading) "Loading..." else "Log Out",
                         color = ErrorDeep,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
