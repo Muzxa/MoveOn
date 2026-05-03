@@ -1,6 +1,7 @@
 package com.example.moveon.ui
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +23,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -43,6 +45,7 @@ import com.example.moveon.ui.features.auth.ProviderSetupStepTwoScreen
 import com.example.moveon.ui.features.auth.RoleChooseScreen
 import com.example.moveon.ui.features.auth.SignUpScreen
 import com.example.moveon.ui.features.book.BookScreen
+import com.example.moveon.ui.features.book.TrackBookingScreen
 import com.example.moveon.ui.features.home.HomeScreen
 import com.example.moveon.ui.features.inventory.AddItemCameraScreen
 import com.example.moveon.ui.features.inventory.BoxItemsScreen
@@ -51,10 +54,17 @@ import com.example.moveon.ui.features.inventory.ScanBoxScreen
 import com.example.moveon.ui.features.onboarding.OnboardingScreen
 import com.example.moveon.ui.features.provider.ProviderDashboardScreen
 import com.example.moveon.ui.features.profile.ProfileScreen
+import com.example.moveon.ui.features.profile.EditProfileScreen
+import com.example.moveon.ui.features.profile.MoveHistoryScreen
+import com.example.moveon.ui.features.profile.SavedAddressesScreen
 import com.example.moveon.ui.features.settings.PasswordUpdatedScreen
 import com.example.moveon.ui.features.settings.SecurityOtpScreen
 import com.example.moveon.ui.features.settings.SecurityScreen
 import com.example.moveon.ui.features.settings.SettingsScreen
+import com.example.moveon.ui.features.settings.AppSettingsScreen
+import com.example.moveon.ui.features.settings.NewPasswordScreen
+import com.example.moveon.ui.features.settings.VerifyIdentityScreen
+import com.example.moveon.ui.features.settings.PasswordUpdateViewModel
 import com.example.moveon.ui.features.splash.SplashScreen
 import com.example.moveon.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -143,6 +153,12 @@ class MainActivity : ComponentActivity() {
                             },
                             onNavigateToRegister = {
                                 navController.navigate(Screen.SignUp.route)
+                            },
+                            onForgotPassword = { email ->
+                                navController.currentBackStackEntry?.savedStateHandle?.set("forgot_email", email)
+                                navController.navigate(Screen.VerifyIdentity.route) {
+                                    launchSingleTop = true
+                                }
                             }
                         )
                     }
@@ -432,14 +448,18 @@ class MainActivity : ComponentActivity() {
                         ProfileScreen(
                             onTabSelected = onTabSelected,
                             onOpenSettings = {
-                                navController.navigate(Screen.Settings.route) {
+                                navController.navigate(Screen.AppSettings.route) {
                                     launchSingleTop = true
                                 }
                             },
-                            onOpenSecurity = {
-                                navController.navigate(Screen.Security.route) {
-                                    launchSingleTop = true
-                                }
+                            onOpenEditProfile = {
+                                navController.navigate(Screen.EditProfile.route) { launchSingleTop = true }
+                            },
+                            onOpenSavedAddresses = {
+                                navController.navigate(Screen.SavedAddresses.route) { launchSingleTop = true }
+                            },
+                            onOpenMoveHistory = {
+                                navController.navigate(Screen.MoveHistory.route) { launchSingleTop = true }
                             },
                             onNavigateToLogin = {
                                 navController.navigate(Screen.Login.route) {
@@ -458,14 +478,18 @@ class MainActivity : ComponentActivity() {
                         ProfileScreen(
                             onTabSelected = onTabSelected,
                             onOpenSettings = {
-                                navController.navigate(Screen.Settings.route) {
+                                navController.navigate(Screen.AppSettings.route) {
                                     launchSingleTop = true
                                 }
                             },
-                            onOpenSecurity = {
-                                navController.navigate(Screen.Security.route) {
-                                    launchSingleTop = true
-                                }
+                            onOpenEditProfile = {
+                                navController.navigate(Screen.EditProfile.route) { launchSingleTop = true }
+                            },
+                            onOpenSavedAddresses = {
+                                navController.navigate(Screen.SavedAddresses.route) { launchSingleTop = true }
+                            },
+                            onOpenMoveHistory = {
+                                navController.navigate(Screen.MoveHistory.route) { launchSingleTop = true }
                             },
                             isProviderMode = true,
                             onProviderTabSelected = { tab ->
@@ -498,8 +522,59 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    composable(Screen.EditProfile.route) {
+                        EditProfileScreen(
+                            onBack = { navController.popBackStack() },
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    composable(Screen.SavedAddresses.route) {
+                        SavedAddressesScreen(
+                            onBack = { navController.popBackStack() },
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    composable(Screen.MoveHistory.route) {
+                        MoveHistoryScreen(
+                            onClose = { navController.popBackStack() },
+                            onViewDetails = { bookingId ->
+                                navController.navigate(Screen.TrackBooking.createRoute(bookingId)) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    composable(Screen.TrackBooking.route) { backStackEntry ->
+                        val bookingId = backStackEntry.arguments?.getString("bookingId").orEmpty()
+                        TrackBookingScreen(
+                            bookingId = bookingId,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
                     composable(Screen.Settings.route) {
                         SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            onTabSelected = onTabSelected,
+                            onOpenSecurity = {
+                                navController.navigate(Screen.Security.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onOpenAppSettings = {
+                                navController.navigate(Screen.AppSettings.route) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.AppSettings.route) {
+                        AppSettingsScreen(
                             onBack = { navController.popBackStack() },
                             onTabSelected = onTabSelected,
                             onOpenSecurity = {
@@ -514,11 +589,40 @@ class MainActivity : ComponentActivity() {
                         SecurityScreen(
                             onBack = { navController.popBackStack() },
                             onOpenOtp = { method ->
+                                navController.navigate(Screen.VerifyIdentity.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    composable(Screen.VerifyIdentity.route) {
+                        val forgotEmail = navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.get<String>("forgot_email")
+                        val passwordUpdateViewModel: PasswordUpdateViewModel = hiltViewModel()
+                        val context = LocalContext.current
+
+                        LaunchedEffect(Unit) {
+                            passwordUpdateViewModel.eventFlow.collect { message ->
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+
+                        VerifyIdentityScreen(
+                            onBack = { navController.popBackStack() },
+                            onSelectMethod = { method ->
+                                if (!forgotEmail.isNullOrBlank() && method == "email") {
+                                    passwordUpdateViewModel.sendPasswordResetEmail(forgotEmail)
+                                }
                                 navController.navigate(Screen.SecurityOtp.createRoute(method)) {
                                     launchSingleTop = true
                                 }
                             },
                             onTabSelected = onTabSelected
+                            ,
+                            prefilledEmail = forgotEmail
                         )
                     }
 
@@ -529,10 +633,29 @@ class MainActivity : ComponentActivity() {
                             verificationMethod = method,
                             onBack = { navController.popBackStack() },
                             onVerify = {
+                                navController.navigate(Screen.NewPassword.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    composable(Screen.NewPassword.route) {
+                        val forgotEmail = runCatching {
+                            navController.getBackStackEntry(Screen.VerifyIdentity.route)
+                                .savedStateHandle
+                                .get<String>("forgot_email")
+                        }.getOrNull()
+
+                        NewPasswordScreen(
+                            onBack = { navController.popBackStack() },
+                            onPasswordChanged = {
                                 navController.navigate(Screen.SecurityUpdated.route) {
                                     launchSingleTop = true
                                 }
                             },
+                            forgotPasswordEmail = forgotEmail,
                             onTabSelected = onTabSelected
                         )
                     }
@@ -543,7 +666,7 @@ class MainActivity : ComponentActivity() {
                                 navController.popBackStack(Screen.Security.route, inclusive = false)
                             },
                             onGoToSettings = {
-                                navController.popBackStack(Screen.Settings.route, inclusive = false)
+                                navController.popBackStack(Screen.AppSettings.route, inclusive = false)
                             },
                             onTabSelected = onTabSelected
                         )
