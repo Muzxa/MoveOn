@@ -142,7 +142,7 @@ class LogisticsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean {
-        return true
+        return firebaseService.verifyBookingOtp(bookingId, enteredOtp)
     }
 
     override suspend fun getBookingsForUser(userId: String): Result<List<Booking>> {

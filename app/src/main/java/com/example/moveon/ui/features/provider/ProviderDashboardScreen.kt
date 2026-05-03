@@ -192,8 +192,11 @@ fun ProviderDashboardScreen(
                     onArrivedAtPickup = {
                         viewModel.markArrivedAtPickup(selectedTrip.bookingId) { _, _ -> }
                     },
-                    onCompleteTrip = {
-                        viewModel.markTripCompleted(selectedTrip.bookingId) { _, _ ->
+                    onVerifyAndCompleteTrip = { enteredOtp ->
+                        viewModel.verifyOtpAndCompleteTrip(
+                            bookingId = selectedTrip.bookingId,
+                            enteredOtp = enteredOtp
+                        ) { _, _ ->
                             selectedTripId = null
                         }
                     },
@@ -483,6 +486,7 @@ private fun NewRequestsSection(
 
     if (state.newRequests.isEmpty()) {
         Card(
+            modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = LightSurface),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, LightBorder)
@@ -582,6 +586,7 @@ private fun ActiveJobsSection(
 
     if (state.activeJobs.isEmpty()) {
         Card(
+            modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = LightSurface),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, LightBorder)

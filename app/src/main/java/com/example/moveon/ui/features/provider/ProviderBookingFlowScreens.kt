@@ -34,6 +34,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -71,7 +72,7 @@ fun ProviderBookingRequestDetailScreen(
     modifier: Modifier = Modifier
 ) {
     var selectedAssignment by remember(request.bookingId) {
-        mutableStateOf(
+        mutableStateOf<ProviderAssignmentOptionUi?>(
             request.assignmentOptions.firstOrNull { it.isAvailable }
                 ?: request.assignmentOptions.firstOrNull()
         )
@@ -285,7 +286,11 @@ fun ProviderBookingRequestDetailScreen(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Instructions", color = LightTextPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                        Text(request.instructions, color = LightTextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = request.instructions.ifBlank { "No special instructions." },
+                            color = LightTextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -409,7 +414,7 @@ fun ProviderTripDetailsScreen(
     vehicleLat: Double?,
     vehicleLng: Double?,
     onArrivedAtPickup: () -> Unit,
-    onCompleteTrip: () -> Unit,
+    onVerifyAndCompleteTrip: (String) -> Unit,
     onCallCustomer: () -> Unit,
     onChatCustomer: () -> Unit,
     onClose: () -> Unit,
@@ -427,6 +432,10 @@ fun ProviderTripDetailsScreen(
 
     var routeToPickupPoints by remember(trip.bookingId, vehicleLat, vehicleLng) { mutableStateOf<List<LatLng>>(emptyList()) }
     var routeToDropoffPoints by remember(trip.bookingId, vehicleLat, vehicleLng) { mutableStateOf<List<LatLng>>(emptyList()) }
+    
+    var showOtpDialog by remember { mutableStateOf(false) }
+    var otpInput by remember { mutableStateOf("") }
+    var otpError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(trip.bookingId, vehicleLat, vehicleLng, trip.status) {
         val toPickup = LocationUtils.fetchRouteOverview(context, routeOrigin, pickupLatLng)
@@ -449,7 +458,7 @@ fun ProviderTripDetailsScreen(
             ) {
                 if (trip.status == "In Transit") {
                     Button(
-                        onClick = onCompleteTrip,
+                        onClick = { showOtpDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Success)
@@ -616,6 +625,77 @@ fun ProviderTripDetailsScreen(
                 }
             }
         }
+    }
+
+    if (showOtpDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showOtpDialog = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Verify Completion", fontWeight = FontWeight.Bold, color = LightTextPrimary)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Please ask the customer for the 6-digit OTP to complete this trip.",
+                        color = LightTextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = otpInput,
+                        onValueChange = { 
+                            if (it.length <= 6 && it.all { char -> char.isDigit() }) {
+                                otpInput = it
+                                otpError = null
+                            }
+                        },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        ),
+                        singleLine = true,
+                        isError = otpError != null,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = LightTextPrimary,
+                            unfocusedTextColor = LightTextPrimary,
+                            disabledTextColor = LightTextPrimary,
+                            cursorColor = LightTextPrimary,
+                            focusedBorderColor = LightBorder,
+                            unfocusedBorderColor = LightBorder,
+                            errorBorderColor = Accent,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            errorSupportingTextColor = Accent
+                        )
+                    )
+                    if (otpError != null) {
+                        Text(otpError!!, color = Accent, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val entered = otpInput.trim()
+                        if (entered.length != 6) {
+                            otpError = "Enter the 6-digit OTP shown to the customer."
+                            return@Button
+                        }
+                        showOtpDialog = false
+                        onVerifyAndCompleteTrip(entered)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Success)
+                ) {
+                    Text("Verify")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOtpDialog = false }) {
+                    Text("Cancel", color = LightTextSecondary)
+                }
+            }
+        )
     }
 }
 

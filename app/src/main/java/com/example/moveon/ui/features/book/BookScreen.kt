@@ -443,6 +443,8 @@ private fun TripDetailsContent(
         provider != null && provider.businessLat != 0.0 -> LatLng(provider.businessLat, provider.businessLng)
         else -> LatLng(booking.pickupLat, booking.pickupLng)
     }
+    val baseStartMillis = (booking.scheduledTime.takeIf { it > 0L } ?: booking.createdAt).takeIf { it > 0L }
+
     val etaFromLiveLocationLabel = vehiclePosition?.let { current ->
         val target = if (booking.status == BookingStatus.ACTIVE) {
             LatLng(booking.dropOffLat, booking.dropOffLng)
@@ -452,7 +454,8 @@ private fun TripDetailsContent(
         val remainingKm = LocationUtils.calculateDistanceKm(current, target)
         val assumedSpeedKmh = 28.0
         val etaMinutes = ceil((remainingKm / assumedSpeedKmh) * 60.0).toLong().coerceAtLeast(1L)
-        formatEpochToTime(System.currentTimeMillis() + etaMinutes * 60_000L)
+        val anchor = baseStartMillis ?: System.currentTimeMillis()
+        formatEpochToTime(anchor + etaMinutes * 60_000L)
     }
 
     var routeToPickupPoints by remember(booking.id, routeOrigin) { mutableStateOf<List<LatLng>>(emptyList()) }
@@ -501,23 +504,27 @@ private fun TripDetailsContent(
             ?: 0L
 
         arrivalAtLabel = activeLegDuration?.let { durSecs ->
-            val arrivalMillis = System.currentTimeMillis() + (durSecs + trafficBufferSeconds) * 1000L
+            val anchor = baseStartMillis ?: System.currentTimeMillis()
+            val arrivalMillis = anchor + (durSecs + trafficBufferSeconds) * 1000L
             formatEpochToTime(arrivalMillis)
         }
 
         completionAtLabel = when {
             booking.status == BookingStatus.ACTIVE && activeToDropOverview.durationSeconds != null -> {
-                val arrivalMillis = System.currentTimeMillis() +
+                val anchor = baseStartMillis ?: System.currentTimeMillis()
+                val arrivalMillis = anchor +
                     (activeToDropOverview.durationSeconds + trafficBufferSeconds) * 1000L
                 formatEpochToTime(arrivalMillis)
             }
             toPickupOverview.durationSeconds != null && pickupToDropOverview.durationSeconds != null -> {
                 val totalSecs = toPickupOverview.durationSeconds + pickupToDropOverview.durationSeconds + trafficBufferSeconds
-                val arrivalMillis = System.currentTimeMillis() + totalSecs * 1000L
+                val anchor = baseStartMillis ?: System.currentTimeMillis()
+                val arrivalMillis = anchor + totalSecs * 1000L
                 formatEpochToTime(arrivalMillis)
             }
             pickupToDropOverview.durationSeconds != null -> {
-                val arrivalMillis = System.currentTimeMillis() +
+                val anchor = baseStartMillis ?: System.currentTimeMillis()
+                val arrivalMillis = anchor +
                     (pickupToDropOverview.durationSeconds + trafficBufferSeconds) * 1000L
                 formatEpochToTime(arrivalMillis)
             }

@@ -72,7 +72,7 @@ fun User.toSessionEntity(): UserSessionEntity = UserSessionEntity(
 // Booking Mappings
 fun BookingDto.toDomainModel(): Booking = Booking(
     id = this.booking_id,
-    userId = this.user_id,
+    userId = this.user_id.ifBlank { this.userId },
     providerId = this.provider_id,
     status = when (this.status) {
         "Confirmed" -> BookingStatus.CONFIRMED

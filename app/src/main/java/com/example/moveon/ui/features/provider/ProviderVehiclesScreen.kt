@@ -86,16 +86,7 @@ fun ProviderVehiclesScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.15f))
-                                .clickable { /* No-op, handled by dashboard tabs usually */ },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.ChevronLeft, contentDescription = "Back", tint = Color.White)
-                        }
+                        // Back button removed as per request
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
@@ -324,14 +315,7 @@ private fun VehicleCard(
                         fontSize = 14.sp
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .border(1.dp, LightBorder, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                        .clickable { /* Assign Driver */ }
-                ) {
-                    Text("Assign", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Medium)
-                }
+                // Assign button removed as per request
             }
         }
     }

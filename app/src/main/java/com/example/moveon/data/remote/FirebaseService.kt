@@ -8,6 +8,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import com.moveon.app.data.remote.dto.BookingDto
 import com.moveon.app.data.remote.dto.BookingVehicleDto
 import com.moveon.app.data.remote.dto.DriverDto
@@ -185,6 +186,30 @@ class FirebaseService @Inject constructor(
         return bookingToPersist
     }
 
+    suspend fun getBookingById(bookingId: String): BookingDto? {
+        return firestore.collection("bookings")
+            .document(bookingId)
+            .get()
+            .await()
+            .toObject(BookingDto::class.java)
+    }
+
+    suspend fun verifyBookingOtp(bookingId: String, enteredOtp: String): Boolean {
+        val dto = getBookingById(bookingId) ?: return false
+        fun normalizeOtp(raw: String): String {
+            val digits = raw.trim().filter { it.isDigit() }
+            return digits.padStart(6, '0').takeLast(6)
+        }
+        val ok = normalizeOtp(dto.otp) == normalizeOtp(enteredOtp)
+        if (ok) {
+            firestore.collection("bookings")
+                .document(bookingId)
+                .set(mapOf("otp_verified" to true), SetOptions.merge())
+                .await()
+        }
+        return ok
+    }
+
     suspend fun createVehicle(vehicle: VehicleDto): VehicleDto {
         val vehiclesCollection = firestore.collection("vehicles")
         val documentRef = if (vehicle.vehicle_id.isBlank()) {
@@ -334,6 +359,38 @@ class FirebaseService @Inject constructor(
     }
 
     suspend fun getUserById(userId: String): com.moveon.app.data.remote.dto.UserDto? {
-        return firestore.collection("users").document(userId).get().await().toObject(com.moveon.app.data.remote.dto.UserDto::class.java)
+        val snap = firestore.collection("users").document(userId).get().await()
+        if (!snap.exists()) return null
+        val parsed = snap.toObject(com.moveon.app.data.remote.dto.UserDto::class.java)
+        val firstSnake = snap.getString("first_name").orEmpty()
+        val lastSnake = snap.getString("last_name").orEmpty()
+        val firstCamel = snap.getString("firstName").orEmpty()
+        val lastCamel = snap.getString("lastName").orEmpty()
+        val email = snap.getString("email") ?: parsed?.email.orEmpty()
+        val phone = snap.getString("phone_number")
+            ?: snap.getString("phoneNumber")
+            ?: parsed?.phone_number.orEmpty()
+        val role = snap.getString("role") ?: parsed?.role ?: "User"
+        val createdAt = (snap.getLong("created_at").takeIf { it != 0L })
+            ?: snap.getLong("createdAt").takeIf { it != 0L }
+            ?: parsed?.created_at
+            ?: 0L
+        val lastLogin = snap.getLong("last_login_time").takeIf { it != 0L }
+            ?: snap.getLong("lastLoginTime").takeIf { it != 0L }
+            ?: parsed?.last_login_time
+
+        val first = firstSnake.ifBlank { firstCamel }.ifBlank { parsed?.first_name.orEmpty() }
+        val last = lastSnake.ifBlank { lastCamel }.ifBlank { parsed?.last_name.orEmpty() }
+
+        return com.moveon.app.data.remote.dto.UserDto(
+            user_id = userId,
+            first_name = first,
+            last_name = last,
+            email = email,
+            phone_number = phone,
+            role = role,
+            created_at = createdAt,
+            last_login_time = lastLogin
+        )
     }
 }
