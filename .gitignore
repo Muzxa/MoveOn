@@ -22,4 +22,5 @@ GEMINI.md
 docs/
 
 AGENTS.md
-errors/.idea/deploymentTargetSelector.xml
+errors/
+.idea/deploymentTargetSelector.xml
