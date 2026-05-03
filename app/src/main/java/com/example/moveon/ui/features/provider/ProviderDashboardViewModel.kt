@@ -111,6 +111,27 @@ class ProviderDashboardViewModel @Inject constructor(
         }
     }
 
+    fun verifyOtpAndCompleteTrip(
+        bookingId: String,
+        enteredOtp: String,
+        onComplete: (Boolean, String?) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            try {
+                val ok = logisticsRepository.verifyMoveOTP(bookingId = bookingId, enteredOtp = enteredOtp)
+                if (!ok) {
+                    onComplete(false, "Incorrect OTP")
+                    return@launch
+                }
+                logisticsRepository.markBookingCompleted(bookingId)
+                onComplete(true, null)
+                refresh()
+            } catch (e: Exception) {
+                onComplete(false, e.message)
+            }
+        }
+    }
+
     fun dismissNewRequestNotification() {
         _state.value = _state.value.copy(
             showNewRequestNotification = false,
@@ -324,13 +345,19 @@ class ProviderDashboardViewModel @Inject constructor(
                         Log.d("ProviderDashboard", "[LISTENER_UPDATE] Received ${liveBookings.size} live bookings for provider ${user.id}")
                         val newRequests = liveBookings.filter { it.status == BookingStatus.SEARCHING }
                         Log.d("ProviderDashboard", "[NEW_REQUESTS] New requests count: ${newRequests.size} - ${newRequests.map { it.id }.joinToString(", ")}")
-                        
+                        val mergedUsersById = liveBookings
+                            .map { it.userId }
+                            .filter { it.isNotBlank() }
+                            .distinct()
+                            .associateWith { uid ->
+                                usersById[uid] ?: logisticsRepository.getUserById(uid).getOrNull()
+                            }
                         publishDashboardState(
                             provider = provider,
                             vehicles = vehicles,
                             drivers = drivers,
                             bookings = liveBookings,
-                            usersById = usersById,
+                            usersById = mergedUsersById,
                             userBookingCounts = userBookingCounts,
                             displayName = displayName,
                             earningsToday = sumEarningsSince(liveBookings, todayStart),
@@ -398,13 +425,11 @@ class ProviderDashboardViewModel @Inject constructor(
                 estimatedHours = estimateTripHours(distanceKm),
                 totalFare = booking.totalFare,
                 providerEarnings = booking.totalFare * 0.92,
-                instructions = "Please call 15 minutes before arrival. Elevator available at pickup.", // Following the screenshot
-                customerName = listOfNotNull(user?.firstName, user?.lastName)
-                    .joinToString(" ")
-                    .ifBlank { "Customer" },
+                instructions = "",
+                customerName = customerDisplayName(user, booking),
                 customerPhone = user?.phoneNumber,
-                customerRating = if (booking.rating > 0f) booking.rating.toDouble() else 4.7,
-                customerBookingCount = userBookingCounts[booking.userId] ?: 12,
+                customerRating = booking.rating.toDouble(),
+                customerBookingCount = userBookingCounts[booking.userId] ?: 0,
                 matchingOptions = matchingOptions,
                 otherOptions = otherOptions
             )
@@ -436,14 +461,12 @@ class ProviderDashboardViewModel @Inject constructor(
                 dropOffLng = booking.dropOffLng,
                 driver = driver?.name?.ifBlank { null } ?: "Unassigned",
                 eta = if (booking.status == BookingStatus.ACTIVE) {
-                    etaLabel(System.currentTimeMillis() + (estimateTripHours(distanceKm) * 60 * 60_000L).toLong())
+                    etaLabel(startTime + (estimateTripHours(distanceKm) * 60 * 60_000L).toLong())
                 } else {
                     etaLabel(startTime)
                 },
                 vehicle = formatVehicle(vehicle),
-                customerName = listOfNotNull(user?.firstName, user?.lastName)
-                    .joinToString(" ")
-                    .ifBlank { "Customer" },
+                customerName = customerDisplayName(user, booking),
                 customerPhone = user?.phoneNumber,
                 boxesCount = booking.vehicles.size,
                 distanceKm = distanceKm,
@@ -538,6 +561,19 @@ class ProviderDashboardViewModel @Inject constructor(
             minutes < 60L -> "$minutes mins ago"
             else -> "${minutes / 60L}h ago"
         }
+    }
+
+    private fun customerDisplayName(user: User?, booking: Booking): String {
+        val fromProfile = listOfNotNull(
+            user?.firstName?.takeIf { it.isNotBlank() },
+            user?.lastName?.takeIf { it.isNotBlank() }
+        ).joinToString(" ").trim()
+        if (fromProfile.isNotEmpty()) return fromProfile
+        val fromEmail = user?.email?.substringBefore('@')?.takeIf { it.isNotBlank() }
+        if (fromEmail != null) return fromEmail
+        val digits = user?.phoneNumber?.filter { it.isDigit() }.orEmpty()
+        if (digits.length >= 4) return "Customer ···${digits.takeLast(4)}"
+        return "Customer"
     }
 
     private fun etaLabel(scheduledAt: Long): String {
@@ -680,7 +716,11 @@ data class ProviderNewRequestUi(
     val customerBookingCount: Int,
     val matchingOptions: List<ProviderAssignmentOptionUi>,
     val otherOptions: List<ProviderAssignmentOptionUi>
-)
+) {
+    /** All vehicle/driver pairings for this request (matching service first, then others). */
+    val assignmentOptions: List<ProviderAssignmentOptionUi>
+        get() = matchingOptions + otherOptions
+}
 
 data class ProviderAssignmentOptionUi(
     val bookingId: String,

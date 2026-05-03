@@ -3,6 +3,8 @@ package com.moveon.app.data.remote.dto
 data class BookingDto(
     val booking_id: String = "",
     val user_id: String = "",
+    /** Some legacy/docs use camelCase in Firestore; prefer [user_id] when present. */
+    val userId: String = "",
     val provider_id: String = "",
     val status: String = "Searching", // Confirmed, Active, or Completed
     val pickup_address: String = "",

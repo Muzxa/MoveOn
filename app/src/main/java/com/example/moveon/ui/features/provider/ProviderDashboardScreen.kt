@@ -192,8 +192,11 @@ fun ProviderDashboardScreen(
                     onArrivedAtPickup = {
                         viewModel.markArrivedAtPickup(selectedTrip.bookingId) { _, _ -> }
                     },
-                    onCompleteTrip = {
-                        viewModel.markTripCompleted(selectedTrip.bookingId) { _, _ ->
+                    onVerifyAndCompleteTrip = { enteredOtp ->
+                        viewModel.verifyOtpAndCompleteTrip(
+                            bookingId = selectedTrip.bookingId,
+                            enteredOtp = enteredOtp
+                        ) { _, _ ->
                             selectedTripId = null
                         }
                     },
