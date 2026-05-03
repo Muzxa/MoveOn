@@ -67,8 +67,9 @@ class AuthViewModel @Inject constructor(
             is AuthEvent.RegisterUser -> registerUser(event.email, event.password, event.fName, event.lName, event.pNumber)
             is AuthEvent.RegisterProvider -> registerProvider(
                 event.email, event.password, event.fName, event.lName, event.pNumber,
-                event.establishmentName, event.baseRate, event.ratePerKm,
-                event.businessLat, event.businessLng
+                event.establishmentName, event.businessLat, event.businessLng,
+                event.vehicleMake, event.vehicleModel, event.vehicleYear, event.vehicleColor,
+                event.plateNumber, event.maxCapacityKg, event.maxVolumeM3, event.baseRate, event.ratePerKm
             )
             is AuthEvent.RegisterDriver -> registerDriver(
                 event.email, event.password, event.fName, event.lName, event.pNumber,
@@ -117,25 +118,18 @@ class AuthViewModel @Inject constructor(
 
     private fun registerProvider(
         email: String, pass: String, fName: String, lName: String, pNumber: String,
-        establishmentName: String,
-        baseRate: Double,
-        ratePerKm: Double,
-        businessLat: Double,
-        businessLng: Double
+        establishmentName: String, businessLat: Double, businessLng: Double,
+        vehicleMake: String, vehicleModel: String, vehicleYear: String, vehicleColor: String,
+        plateNumber: String, maxCapacityKg: Double, maxVolumeM3: Double, baseRate: Double, ratePerKm: Double
     ) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             authRepository.registerProvider(
-                email = email,
-                pass = pass,
-                fName = fName,
-                lName = lName,
-                pNumber = pNumber,
-                establishmentName = establishmentName,
-                baseRate = baseRate,
-                ratePerKm = ratePerKm,
-                businessLat = businessLat,
-                businessLng = businessLng
+                email = email, pass = pass, fName = fName, lName = lName, pNumber = pNumber,
+                establishmentName = establishmentName, businessLat = businessLat, businessLng = businessLng,
+                vehicleMake = vehicleMake, vehicleModel = vehicleModel, vehicleYear = vehicleYear,
+                vehicleColor = vehicleColor, plateNumber = plateNumber, maxCapacityKg = maxCapacityKg,
+                maxVolumeM3 = maxVolumeM3, baseRate = baseRate, ratePerKm = ratePerKm
             )
                 .onSuccess {
                     _authState.value = AuthState.Success
@@ -216,10 +210,17 @@ sealed class AuthEvent {
         val lName: String,
         val pNumber: String,
         val establishmentName: String,
-        val baseRate: Double,
-        val ratePerKm: Double,
         val businessLat: Double,
-        val businessLng: Double
+        val businessLng: Double,
+        val vehicleMake: String,
+        val vehicleModel: String,
+        val vehicleYear: String,
+        val vehicleColor: String,
+        val plateNumber: String,
+        val maxCapacityKg: Double,
+        val maxVolumeM3: Double,
+        val baseRate: Double,
+        val ratePerKm: Double
     ) : AuthEvent()
     data class RegisterDriver(
         val email: String,

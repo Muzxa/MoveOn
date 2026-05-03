@@ -5,8 +5,6 @@ data class Provider(
     val establishmentName: String,
     val isVerified: Boolean,
     val rating: Double,
-    val baseRate: Double,
-    val ratePerKm: Double,
     val businessLat: Double = 0.0,
     val businessLng: Double = 0.0,
     val phoneNumber: String? = null

@@ -378,7 +378,7 @@ class BookViewModel @Inject constructor(
             return
         }
 
-        val fare = selectedProvider.baseRate + (selectedProvider.ratePerKm * distanceKm)
+        val fare = 500.0 + (25.0 * distanceKm)
         val otp = generateOtpCode()
         val bookingToCreate = Booking(
             id = "",
@@ -523,8 +523,17 @@ class BookViewModel @Inject constructor(
                                 isWaitingForProviderResponse = false
                             )
                         }
+                        BookingStatus.COMPLETED -> {
+                            Log.d("BookViewModel", "[STATUS_LISTENER] Booking $bookingId is now COMPLETED")
+                            clearBookingTrackingJobs()
+                            _state.value = _state.value.copy(
+                                createdBooking = _state.value.createdBooking?.copy(status = BookingStatus.COMPLETED),
+                                showOtpDialog = false,
+                                isWaitingForProviderResponse = false
+                            )
+                        }
                         else -> {
-                            // SEARCHING or COMPLETED - keep current state
+                            // SEARCHING - keep current state
                             Log.d("BookViewModel", "[STATUS_LISTENER] Booking $bookingId still in ${status.name}")
                         }
                     }
@@ -604,7 +613,7 @@ class BookViewModel @Inject constructor(
     }
 
     private fun generateOtpCode(): String {
-        val code = Random.nextInt(from = 1000, until = 10000)
+        val code = Random.nextInt(from = 100000, until = 1000000)
         return code.toString()
     }
 

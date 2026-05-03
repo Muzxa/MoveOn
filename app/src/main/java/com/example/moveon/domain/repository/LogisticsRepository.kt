@@ -2,10 +2,12 @@ package com.example.moveon.domain.repository
 
 import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.BookingStatus
+import com.example.moveon.domain.model.BookingVehicle
 import com.example.moveon.domain.model.Driver
 import com.example.moveon.domain.model.Provider
 import com.example.moveon.domain.model.TripActorType
 import com.example.moveon.domain.model.TripLocation
+import com.example.moveon.domain.model.User
 import com.example.moveon.domain.model.Vehicle
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.flow.Flow
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 interface LogisticsRepository {
     suspend fun getMarketplaceProviders(): List<Provider>
     suspend fun getProviderById(providerId: String): Result<Provider?>
+    suspend fun getUserById(userId: String): Result<User?>
     suspend fun getVehiclesForProvider(providerId: String): Result<List<Vehicle>>
     suspend fun createVehicle(vehicle: Vehicle): Result<Vehicle>
     suspend fun updateVehicle(vehicle: Vehicle): Result<Vehicle>
@@ -23,6 +26,13 @@ interface LogisticsRepository {
     suspend fun confirmBooking(booking: Booking)
     // Confirm booking using only booking id (server-side update)
     suspend fun confirmBookingById(bookingId: String, providerId: String)
+    suspend fun assignVehicleAndDriverToBooking(
+        bookingId: String,
+        providerId: String,
+        assignment: BookingVehicle
+    )
+    suspend fun markBookingActive(bookingId: String)
+    suspend fun markBookingCompleted(bookingId: String)
     suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean
     suspend fun getBookingsForUser(userId: String): Result<List<Booking>>
     suspend fun getCurrentBookingForUser(userId: String): Result<Booking?>

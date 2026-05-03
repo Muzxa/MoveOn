@@ -20,6 +20,8 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -46,9 +48,9 @@ enum class ProviderDashboardTab(
     val label: String,
     val icon: ImageVector
 ) {
-    Dashboard("Home", Icons.Outlined.Home),
-    Vehicles("Vehicles", Icons.Outlined.LocalShipping),
-    Jobs("Jobs", Icons.Outlined.Inventory2),
+    Dashboard("Dashboard", Icons.Outlined.GridView),
+    Fleet("Fleet", Icons.Outlined.LocalShipping),
+    Drivers("Drivers", Icons.Outlined.Group),
     Profile("Profile", Icons.Outlined.PersonOutline)
 }
 

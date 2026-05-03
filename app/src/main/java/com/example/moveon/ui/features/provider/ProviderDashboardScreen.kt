@@ -1,8 +1,11 @@
 package com.example.moveon.ui.features.provider
 
 import android.util.Log
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,6 +88,12 @@ fun ProviderDashboardScreen(
     val state = viewModel.state.value
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(ProviderDashboardTab.Dashboard) }
+    var selectedRequestId by remember { mutableStateOf<String?>(null) }
+    var selectedTripId by remember { mutableStateOf<String?>(null) }
+    var shouldOpenAddVehicleSheet by remember { mutableStateOf(false) }
+
+    val selectedRequest = state.newRequests.firstOrNull { it.bookingId == selectedRequestId }
+    val selectedTrip = state.activeJobs.firstOrNull { it.bookingId == selectedTripId }
 
     LaunchedEffect(state.showNewRequestNotification) {
         if (state.showNewRequestNotification) {
@@ -140,14 +149,78 @@ fun ProviderDashboardScreen(
 
         Scaffold(
             containerColor = LightBackground,
-            bottomBar = {
-                ProviderBottomBar(
-                    selectedTab = selectedTab,
-                    onTabSelected = { selectedTab = it }
-                )
+            bottomBar = if (selectedRequest == null && selectedTrip == null) {
+                {
+                    ProviderBottomBar(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it }
+                    )
+                }
+            } else {
+                {}
             }
         ) { innerPadding ->
-        when (selectedTab) {
+        when {
+            selectedRequest != null -> {
+                ProviderBookingRequestDetailScreen(
+                    request = selectedRequest,
+                    onClose = { selectedRequestId = null },
+                    onAssignAndDispatch = { assignment ->
+                        viewModel.assignAndDispatchBooking(
+                            bookingId = selectedRequest.bookingId,
+                            vehicleId = assignment.vehicleId,
+                            driverId = assignment.driverId
+                        ) { success, _ ->
+                            if (success) {
+                                selectedRequestId = null
+                                selectedTripId = selectedRequest.bookingId
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                )
+            }
+
+            selectedTrip != null -> {
+                ProviderTripDetailsScreen(
+                    trip = selectedTrip,
+                    vehicleLat = state.liveVehicleLat,
+                    vehicleLng = state.liveVehicleLng,
+                    onArrivedAtPickup = {
+                        viewModel.markArrivedAtPickup(selectedTrip.bookingId) { _, _ -> }
+                    },
+                    onCompleteTrip = {
+                        viewModel.markTripCompleted(selectedTrip.bookingId) { _, _ ->
+                            selectedTripId = null
+                        }
+                    },
+                    onCallCustomer = {
+                        val number = selectedTrip.customerPhone.orEmpty().trim()
+                        if (number.isNotEmpty()) {
+                            context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
+                        }
+                    },
+                    onChatCustomer = {
+                        val number = selectedTrip.customerPhone.orEmpty().trim()
+                        if (number.isNotEmpty()) {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://wa.me/${number.filter { it.isDigit() }}")
+                                )
+                            )
+                        }
+                    },
+                    onClose = { selectedTripId = null },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                )
+            }
+
+            else -> when (selectedTab) {
             ProviderDashboardTab.Dashboard -> {
                 LazyColumn(
                     modifier = Modifier
@@ -179,11 +252,24 @@ fun ProviderDashboardScreen(
                                     color = LightTextSecondary
                                 )
                             }
-                            QuickActionsSection()
+                            QuickActionsSection(
+                                onAddVehicleClick = { 
+                                    shouldOpenAddVehicleSheet = true
+                                    selectedTab = ProviderDashboardTab.Fleet 
+                                },
+                                onAddDriverClick = { selectedTab = ProviderDashboardTab.Drivers }
+                            )
                             EarningsSection(state = state)
                             KpiSection(state = state)
-                            NewRequestsSection(state = state, onAccept = { bookingId -> viewModel.acceptBooking(bookingId) })
-                            ActiveJobsSection(state = state)
+                            NewRequestsSection(
+                                state = state,
+                                onAccept = { bookingId -> viewModel.acceptBooking(bookingId) },
+                                onOpenRequest = { bookingId -> selectedRequestId = bookingId }
+                            )
+                            ActiveJobsSection(
+                                state = state,
+                                onOpenTrip = { bookingId -> selectedTripId = bookingId }
+                            )
                             if (state.errorMessage != null) {
                                 Text(
                                     text = state.errorMessage,
@@ -195,15 +281,17 @@ fun ProviderDashboardScreen(
                 }
             }
 
-            ProviderDashboardTab.Vehicles -> {
+            ProviderDashboardTab.Fleet -> {
                 ProviderVehiclesScreen(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
+                        .padding(innerPadding),
+                    triggerAddVehicle = shouldOpenAddVehicleSheet,
+                    onAddVehicleTriggered = { shouldOpenAddVehicleSheet = false }
                 )
             }
 
-            ProviderDashboardTab.Jobs -> {
+            ProviderDashboardTab.Drivers -> {
                 ProviderJobsScreen(
                     modifier = Modifier
                         .fillMaxSize()
@@ -212,6 +300,7 @@ fun ProviderDashboardScreen(
             }
 
             ProviderDashboardTab.Profile -> Unit
+        }
         }
         }
     }
@@ -288,7 +377,10 @@ private fun ProviderDashboardHeader(state: ProviderDashboardUiState) {
 }
 
 @Composable
-private fun QuickActionsSection() {
+private fun QuickActionsSection(
+    onAddVehicleClick: () -> Unit,
+    onAddDriverClick: () -> Unit
+) {
     ProviderSectionHeader(title = "Quick Actions")
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -297,13 +389,13 @@ private fun QuickActionsSection() {
         ProviderQuickActionCard(
             icon = Icons.Outlined.Add,
             title = "Add Vehicle",
-            onClick = {},
+            onClick = onAddVehicleClick,
             modifier = Modifier.weight(1f)
         )
         ProviderQuickActionCard(
             icon = Icons.Outlined.Groups,
             title = "Add Driver",
-            onClick = {},
+            onClick = onAddDriverClick,
             modifier = Modifier.weight(1f)
         )
     }
@@ -368,11 +460,19 @@ private fun KpiSection(state: ProviderDashboardUiState) {
 }
 
 @Composable
-private fun NewRequestsSection(state: ProviderDashboardUiState, onAccept: (String) -> Unit) {
+private fun NewRequestsSection(
+    state: ProviderDashboardUiState,
+    onAccept: (String) -> Unit,
+    onOpenRequest: (String) -> Unit
+) {
 
     ProviderSectionHeader(title = "New Requests")
     state.newRequests.forEach { request ->
-        NewRequestCard(request, onAccept)
+        NewRequestCard(
+            request = request,
+            onAccept = onAccept,
+            onOpenRequest = onOpenRequest
+        )
     }
 
     if (state.newRequests.isEmpty()) {
@@ -391,10 +491,15 @@ private fun NewRequestsSection(state: ProviderDashboardUiState, onAccept: (Strin
 }
 
 @Composable
-private fun NewRequestCard(request: ProviderNewRequestUi, onAccept: (String) -> Unit) {
+private fun NewRequestCard(
+    request: ProviderNewRequestUi,
+    onAccept: (String) -> Unit,
+    onOpenRequest: (String) -> Unit
+) {
     val (serviceBackground, serviceColor) = requestServiceColors(request.service)
 
     Card(
+        modifier = Modifier.clickable { onOpenRequest(request.bookingId) },
         colors = CardDefaults.cardColors(containerColor = LightSurface),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, Accent)
@@ -459,11 +564,14 @@ private fun NewRequestCard(request: ProviderNewRequestUi, onAccept: (String) -> 
 }
 
 @Composable
-private fun ActiveJobsSection(state: ProviderDashboardUiState) {
+private fun ActiveJobsSection(
+    state: ProviderDashboardUiState,
+    onOpenTrip: (String) -> Unit
+) {
 
     ProviderSectionHeader(title = "Active Jobs", trailingText = "Track All")
     state.activeJobs.forEach { job ->
-        ActiveJobCard(job)
+        ActiveJobCard(job = job, onOpenTrip = onOpenTrip)
     }
 
     if (state.activeJobs.isEmpty()) {
@@ -482,11 +590,12 @@ private fun ActiveJobsSection(state: ProviderDashboardUiState) {
 }
 
 @Composable
-private fun ActiveJobCard(job: ProviderActiveJobUi) {
+private fun ActiveJobCard(job: ProviderActiveJobUi, onOpenTrip: (String) -> Unit) {
     val (serviceBackground, serviceColor) = requestServiceColors(job.service)
     val (stateBackground, stateColor) = statusColors(job.status)
 
     Card(
+        modifier = Modifier.clickable { onOpenTrip(job.bookingId) },
         colors = CardDefaults.cardColors(containerColor = LightSurface),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, LightBorder)
