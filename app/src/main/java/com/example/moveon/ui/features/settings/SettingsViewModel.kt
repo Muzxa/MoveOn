@@ -170,6 +170,63 @@ class SecurityViewModel @Inject constructor(
     )
 }
 
+@HiltViewModel
+class PasswordUpdateViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
+    private val _eventFlow = MutableSharedFlow<String>()
+    val eventFlow: SharedFlow<String> = _eventFlow.asSharedFlow()
+    private val _requiresReauth = mutableStateOf(false)
+    val requiresReauth: State<Boolean> = _requiresReauth
+
+    fun updatePassword(newPassword: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val result = authRepository.updatePassword(newPassword)
+            result.onSuccess {
+                _requiresReauth.value = false
+                onSuccess()
+            }.onFailure { e ->
+                val message = e.message.orEmpty()
+                if (message.contains("requires recent authentication", ignoreCase = true) ||
+                    message.contains("recent login", ignoreCase = true)
+                ) {
+                    _requiresReauth.value = true
+                    _eventFlow.emit("Please enter your current password to continue.")
+                } else {
+                _eventFlow.emit(e.message ?: "Failed to update password")
+                }
+            }
+        }
+    }
+
+    fun reauthenticateAndUpdatePassword(
+        currentPassword: String,
+        newPassword: String,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val reauthResult = authRepository.reauthenticate(currentPassword)
+            reauthResult.onSuccess {
+                updatePassword(newPassword, onSuccess)
+            }.onFailure { e ->
+                _eventFlow.emit(e.message ?: "Re-authentication failed")
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val result = authRepository.sendPasswordResetEmail(email)
+            result.onSuccess {
+                _eventFlow.emit("Password reset link sent to $email")
+                onSuccess()
+            }.onFailure { e ->
+                _eventFlow.emit(e.message ?: "Failed to send reset email")
+            }
+        }
+    }
+}
+
 data class SettingsUiState(
     val isLoading: Boolean = false,
     val pushNotificationsEnabled: Boolean = false,
