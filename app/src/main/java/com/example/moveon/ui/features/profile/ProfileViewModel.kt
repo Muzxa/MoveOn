@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -89,6 +92,7 @@ class ProfileViewModel @Inject constructor(
             email = user.email,
             initials = initialsOf(user.firstName, user.lastName),
             profilePhotoUrl = firebaseAuth.currentUser?.photoUrl?.toString(),
+            memberSinceDate = formatMemberSince(user.createdAt),
             errorMessage = null
         )
 
@@ -130,6 +134,15 @@ class ProfileViewModel @Inject constructor(
             }
     }
 
+    private fun formatMemberSince(createdAt: Long): String {
+        return try {
+            val sdf = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+            sdf.format(Date(createdAt))
+        } catch (t: Throwable) {
+            ""
+        }
+    }
+
     private fun logout() {
         viewModelScope.launch {
             authRepository.logout()
@@ -150,6 +163,7 @@ data class ProfileUiState(
     val email: String = "",
     val initials: String = "MO",
     val profilePhotoUrl: String? = null,
+    val memberSinceDate: String = "",
     val totalMoves: Int = 0,
     val totalBoxes: Int = 0,
     val averageRating: Float = 0f,

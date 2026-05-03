@@ -38,6 +38,7 @@ interface LogisticsRepository {
     suspend fun markBookingCompleted(bookingId: String)
     suspend fun verifyMoveOTP(bookingId: String, enteredOtp: String): Boolean
     suspend fun getBookingsForUser(userId: String): Result<List<Booking>>
+    suspend fun getBookingById(bookingId: String): Result<Booking?>
     suspend fun getCurrentBookingForUser(userId: String): Result<Booking?>
     suspend fun publishTripLocation(
         bookingId: String,

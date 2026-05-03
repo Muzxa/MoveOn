@@ -152,6 +152,12 @@ class LogisticsRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getBookingById(bookingId: String): Result<Booking?> {
+        return runCatching {
+            firebaseService.getBookingById(bookingId)?.toDomainModel()
+        }
+    }
+
     override suspend fun getCurrentBookingForUser(userId: String): Result<Booking?> {
         return runCatching {
             firebaseService.getBookingsForUser(userId)

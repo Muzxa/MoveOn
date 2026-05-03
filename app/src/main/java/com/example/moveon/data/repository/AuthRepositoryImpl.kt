@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.moveon.app.data.remote.dto.DriverDto
@@ -125,6 +126,62 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         userSessionDao.clearAllSessions()
         firebaseAuth.signOut()
+    }
+
+    override suspend fun updatePassword(newPassword: String): Result<Unit> {
+        return try {
+            val user = firebaseAuth.currentUser ?: throw Exception("You need to be logged in to change password.")
+            user.updatePassword(newPassword).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun reauthenticate(currentPassword: String): Result<Unit> {
+        return try {
+            val user = firebaseAuth.currentUser ?: throw Exception("You need to be logged in to continue.")
+            val email = user.email ?: throw Exception("No email found for this account.")
+            val credential = EmailAuthProvider.getCredential(email, currentPassword)
+            user.reauthenticate(credential).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        return try {
+            firebaseAuth.sendPasswordResetEmail(email).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateUserProfile(
+        firstName: String,
+        lastName: String,
+        email: String,
+        phoneNumber: String
+    ): Result<Unit> {
+        return try {
+            val user = firebaseAuth.currentUser ?: throw Exception("You need to be logged in to update profile.")
+            firebaseFirestore.collection("users")
+                .document(user.uid)
+                .update(
+                    mapOf(
+                        "first_name" to firstName,
+                        "last_name" to lastName,
+                        "email" to email,
+                        "phone_number" to phoneNumber
+                    )
+                )
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun signInWithGoogle(idToken: String): Result<User> {
