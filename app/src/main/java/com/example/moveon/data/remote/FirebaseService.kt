@@ -186,14 +186,6 @@ class FirebaseService @Inject constructor(
         return bookingToPersist
     }
 
-    suspend fun getBookingById(bookingId: String): BookingDto? {
-        return firestore.collection("bookings")
-            .document(bookingId)
-            .get()
-            .await()
-            .toObject(BookingDto::class.java)
-    }
-
     suspend fun verifyBookingOtp(bookingId: String, enteredOtp: String): Boolean {
         val dto = getBookingById(bookingId) ?: return false
         fun normalizeOtp(raw: String): String {
