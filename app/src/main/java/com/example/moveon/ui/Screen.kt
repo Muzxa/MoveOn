@@ -28,4 +28,9 @@ sealed class Screen (val route: String) {
     object Profile : Screen("profile")
     object ProviderProfile : Screen("provider_profile")
     object Settings : Screen("settings")
+    object Security : Screen("security")
+    object SecurityOtp : Screen("security_otp/{method}") {
+        fun createRoute(method: String): String = "security_otp/$method"
+    }
+    object SecurityUpdated : Screen("security_updated")
 }

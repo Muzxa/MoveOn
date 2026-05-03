@@ -56,6 +56,8 @@ import com.example.moveon.ui.theme.Success
 fun ProfileScreen(
     onTabSelected: (DashboardTab) -> Unit,
     onNavigateToLogin: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenSecurity: () -> Unit,
     isProviderMode: Boolean = false,
     onProviderTabSelected: (ProviderDashboardTab) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
@@ -205,13 +207,13 @@ fun ProfileScreen(
                     MoveOnProfileActionRowItem(
                         title = "App Settings",
                         leadingIcon = Icons.Outlined.Settings,
-                        onClick = {},
+                        onClick = onOpenSettings,
                         showDivider = true
                     )
                     MoveOnProfileActionRowItem(
                         title = "Privacy & Security",
                         leadingIcon = Icons.Outlined.Lock,
-                        onClick = {},
+                        onClick = onOpenSecurity,
                         showDivider = false
                     )
                 }

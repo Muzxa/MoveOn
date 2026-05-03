@@ -51,6 +51,10 @@ import com.example.moveon.ui.features.inventory.ScanBoxScreen
 import com.example.moveon.ui.features.onboarding.OnboardingScreen
 import com.example.moveon.ui.features.provider.ProviderDashboardScreen
 import com.example.moveon.ui.features.profile.ProfileScreen
+import com.example.moveon.ui.features.settings.PasswordUpdatedScreen
+import com.example.moveon.ui.features.settings.SecurityOtpScreen
+import com.example.moveon.ui.features.settings.SecurityScreen
+import com.example.moveon.ui.features.settings.SettingsScreen
 import com.example.moveon.ui.features.splash.SplashScreen
 import com.example.moveon.ui.theme.MoveOnTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -427,6 +431,16 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.Profile.route) {
                         ProfileScreen(
                             onTabSelected = onTabSelected,
+                            onOpenSettings = {
+                                navController.navigate(Screen.Settings.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onOpenSecurity = {
+                                navController.navigate(Screen.Security.route) {
+                                    launchSingleTop = true
+                                }
+                            },
                             onNavigateToLogin = {
                                 navController.navigate(Screen.Login.route) {
                                     popUpTo(navController.graph.id) {
@@ -443,6 +457,16 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.ProviderProfile.route) {
                         ProfileScreen(
                             onTabSelected = onTabSelected,
+                            onOpenSettings = {
+                                navController.navigate(Screen.Settings.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onOpenSecurity = {
+                                navController.navigate(Screen.Security.route) {
+                                    launchSingleTop = true
+                                }
+                            },
                             isProviderMode = true,
                             onProviderTabSelected = { tab ->
                                 when (tab) {
@@ -471,6 +495,57 @@ class MainActivity : ComponentActivity() {
                                     restoreState = false
                                 }
                             }
+                        )
+                    }
+
+                    composable(Screen.Settings.route) {
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            onTabSelected = onTabSelected,
+                            onOpenSecurity = {
+                                navController.navigate(Screen.Security.route) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.Security.route) {
+                        SecurityScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenOtp = { method ->
+                                navController.navigate(Screen.SecurityOtp.createRoute(method)) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    composable(Screen.SecurityOtp.route) { backStackEntry ->
+                        val method = backStackEntry.arguments?.getString("method").orEmpty()
+
+                        SecurityOtpScreen(
+                            verificationMethod = method,
+                            onBack = { navController.popBackStack() },
+                            onVerify = {
+                                navController.navigate(Screen.SecurityUpdated.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onTabSelected = onTabSelected
+                        )
+                    }
+
+                    composable(Screen.SecurityUpdated.route) {
+                        PasswordUpdatedScreen(
+                            onVerifyAgain = {
+                                navController.popBackStack(Screen.Security.route, inclusive = false)
+                            },
+                            onGoToSettings = {
+                                navController.popBackStack(Screen.Settings.route, inclusive = false)
+                            },
+                            onTabSelected = onTabSelected
                         )
                     }
                 }
