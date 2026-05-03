@@ -427,6 +427,10 @@ fun ProviderTripDetailsScreen(
 
     var routeToPickupPoints by remember(trip.bookingId, vehicleLat, vehicleLng) { mutableStateOf<List<LatLng>>(emptyList()) }
     var routeToDropoffPoints by remember(trip.bookingId, vehicleLat, vehicleLng) { mutableStateOf<List<LatLng>>(emptyList()) }
+    
+    var showOtpDialog by remember { mutableStateOf(false) }
+    var otpInput by remember { mutableStateOf("") }
+    var otpError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(trip.bookingId, vehicleLat, vehicleLng, trip.status) {
         val toPickup = LocationUtils.fetchRouteOverview(context, routeOrigin, pickupLatLng)
@@ -449,7 +453,7 @@ fun ProviderTripDetailsScreen(
             ) {
                 if (trip.status == "In Transit") {
                     Button(
-                        onClick = onCompleteTrip,
+                        onClick = { showOtpDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Success)
@@ -616,6 +620,65 @@ fun ProviderTripDetailsScreen(
                 }
             }
         }
+        }
+    }
+
+    if (showOtpDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showOtpDialog = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Verify Completion", fontWeight = FontWeight.Bold, color = LightTextPrimary)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Please ask the customer for the 4-digit OTP to complete this trip.",
+                        color = LightTextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = otpInput,
+                        onValueChange = { 
+                            if (it.length <= 4 && it.all { char -> char.isDigit() }) {
+                                otpInput = it
+                                otpError = null
+                            }
+                        },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        ),
+                        singleLine = true,
+                        isError = otpError != null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (otpError != null) {
+                        Text(otpError!!, color = Accent, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (otpInput == trip.otp) {
+                            showOtpDialog = false
+                            onCompleteTrip()
+                        } else {
+                            otpError = "Incorrect OTP. Please try again."
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Success)
+                ) {
+                    Text("Verify")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOtpDialog = false }) {
+                    Text("Cancel", color = LightTextSecondary)
+                }
+            }
+        )
     }
 }
 

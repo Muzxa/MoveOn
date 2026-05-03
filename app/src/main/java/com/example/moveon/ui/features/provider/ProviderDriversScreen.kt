@@ -82,16 +82,7 @@ fun ProviderDriversScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.15f))
-                                .clickable { /* Back handled by tabs */ },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.ChevronLeft, contentDescription = "Back", tint = Color.White)
-                        }
+                        // Back button removed as per request
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(

@@ -483,6 +483,7 @@ private fun NewRequestsSection(
 
     if (state.newRequests.isEmpty()) {
         Card(
+            modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = LightSurface),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, LightBorder)
@@ -582,6 +583,7 @@ private fun ActiveJobsSection(
 
     if (state.activeJobs.isEmpty()) {
         Card(
+            modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = LightSurface),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, LightBorder)

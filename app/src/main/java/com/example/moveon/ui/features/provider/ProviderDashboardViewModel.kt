@@ -372,35 +372,41 @@ class ProviderDashboardViewModel @Inject constructor(
 
         val requestItems = newRequests.map { booking ->
             val user = usersById[booking.userId]
-            val assignmentOptions = buildAssignmentOptions(
+            val allOptions = buildAssignmentOptions(
                 bookingId = booking.id,
-                service = planForFare(booking.totalFare),
                 vehicles = vehicles,
                 drivers = drivers
             )
+            val requestedService = planForFare(booking.totalFare)
+            val matchingOptions = allOptions.filter { it.serviceTag == requestedService }
+            val otherOptions = allOptions.filter { it.serviceTag != requestedService }
+
             val distanceKm = routeDistanceKm(booking)
+            val startTime = if (booking.scheduledTime > 0L) booking.scheduledTime else booking.createdAt
+            
             ProviderNewRequestUi(
                 bookingId = booking.id,
                 bookingCode = buildBookingCode(booking.id),
                 userId = booking.userId,
-                service = planForFare(booking.totalFare),
+                service = requestedService,
                 ageLabel = ageLabel(booking.createdAt),
                 pickup = booking.pickupAddress,
                 destination = booking.dropOffAddress,
-                pickupScheduleLabel = timeLabel(booking.scheduledTime),
-                dropOffEstimateLabel = estimateDropoffLabel(booking.scheduledTime, distanceKm),
+                pickupScheduleLabel = timeLabel(startTime),
+                dropOffEstimateLabel = estimateDropoffLabel(startTime, distanceKm),
                 distanceKm = distanceKm,
                 estimatedHours = estimateTripHours(distanceKm),
                 totalFare = booking.totalFare,
                 providerEarnings = booking.totalFare * 0.92,
-                instructions = "No special instructions provided",
+                instructions = "Please call 15 minutes before arrival. Elevator available at pickup.", // Following the screenshot
                 customerName = listOfNotNull(user?.firstName, user?.lastName)
                     .joinToString(" ")
                     .ifBlank { "Customer" },
                 customerPhone = user?.phoneNumber,
-                customerRating = if (booking.rating > 0f) booking.rating.toDouble() else 4.5,
-                customerBookingCount = userBookingCounts[booking.userId] ?: 0,
-                assignmentOptions = assignmentOptions
+                customerRating = if (booking.rating > 0f) booking.rating.toDouble() else 4.7,
+                customerBookingCount = userBookingCounts[booking.userId] ?: 12,
+                matchingOptions = matchingOptions,
+                otherOptions = otherOptions
             )
         }
 
@@ -410,6 +416,8 @@ class ProviderDashboardViewModel @Inject constructor(
             val driver = drivers.firstOrNull { it.id == assignment?.driverId }
             val user = usersById[booking.userId]
             val distanceKm = routeDistanceKm(booking)
+            val startTime = if (booking.scheduledTime > 0L) booking.scheduledTime else booking.createdAt
+            
             ProviderActiveJobUi(
                 bookingId = booking.id,
                 userId = booking.userId,
@@ -419,18 +427,18 @@ class ProviderDashboardViewModel @Inject constructor(
                     BookingStatus.CONFIRMED -> "Loading"
                     else -> booking.status.name.lowercase().replaceFirstChar { it.uppercaseChar() }
                 },
-                code = "#${booking.id.takeLast(4)}",
+                code = buildBookingCode(booking.id).substringAfter("-20"), // Shorter code for active jobs
                 pickup = booking.pickupAddress,
                 destination = booking.dropOffAddress,
                 pickupLat = booking.pickupLat,
                 pickupLng = booking.pickupLng,
                 dropOffLat = booking.dropOffLat,
                 dropOffLng = booking.dropOffLng,
-                driver = driver?.id?.ifBlank { null } ?: "Unassigned",
+                driver = driver?.name?.ifBlank { null } ?: "Unassigned",
                 eta = if (booking.status == BookingStatus.ACTIVE) {
                     etaLabel(System.currentTimeMillis() + (estimateTripHours(distanceKm) * 60 * 60_000L).toLong())
                 } else {
-                    etaLabel(booking.scheduledTime)
+                    etaLabel(startTime)
                 },
                 vehicle = formatVehicle(vehicle),
                 customerName = listOfNotNull(user?.firstName, user?.lastName)
@@ -440,7 +448,8 @@ class ProviderDashboardViewModel @Inject constructor(
                 boxesCount = booking.vehicles.size,
                 distanceKm = distanceKm,
                 totalFare = booking.totalFare,
-                assignedVehicleId = assignment?.vehicleId
+                assignedVehicleId = assignment?.vehicleId,
+                otp = booking.otp
             )
         }
 
@@ -590,7 +599,6 @@ class ProviderDashboardViewModel @Inject constructor(
 
     private fun buildAssignmentOptions(
         bookingId: String,
-        service: String,
         vehicles: List<Vehicle>,
         drivers: List<Driver>
     ): List<ProviderAssignmentOptionUi> {
@@ -605,12 +613,12 @@ class ProviderDashboardViewModel @Inject constructor(
                 vehicleId = vehicle.id,
                 driverId = driver.id,
                 vehicleLabel = formatVehicle(vehicle),
-                driverLabel = "Driver ${driver.licenseNo.ifBlank { "#" + driver.id.takeLast(4) }}",
-                serviceTag = service,
-                isAvailable = vehicle.isAvailable,
-                rating = if (vehicle.isAvailable) 4.9 else 4.5,
-                trips = if (vehicle.isAvailable) 187 else 56,
-                statusLabel = if (vehicle.isAvailable) "Available" else "Off Duty"
+                driverLabel = driver.name.ifBlank { "Driver " + driver.licenseNo.ifBlank { "#" + driver.id.takeLast(4) } },
+                serviceTag = vehicle.type.ifBlank { "MoveLite" }, // Based on vehicle type instead of requested service
+                isAvailable = driver.status == "Available",
+                rating = driver.rating,
+                trips = driver.tripsCount,
+                statusLabel = driver.status
             )
         }.sortedByDescending { it.isAvailable }
     }
@@ -670,7 +678,8 @@ data class ProviderNewRequestUi(
     val customerPhone: String?,
     val customerRating: Double,
     val customerBookingCount: Int,
-    val assignmentOptions: List<ProviderAssignmentOptionUi>
+    val matchingOptions: List<ProviderAssignmentOptionUi>,
+    val otherOptions: List<ProviderAssignmentOptionUi>
 )
 
 data class ProviderAssignmentOptionUi(
@@ -706,5 +715,6 @@ data class ProviderActiveJobUi(
     val boxesCount: Int,
     val distanceKm: Double,
     val totalFare: Double,
-    val assignedVehicleId: String?
+    val assignedVehicleId: String?,
+    val otp: String
 )
