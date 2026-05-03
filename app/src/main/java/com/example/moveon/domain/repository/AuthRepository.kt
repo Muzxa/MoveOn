@@ -26,7 +26,9 @@ interface AuthRepository {
         pNumber: String,
         establishmentName: String,
         baseRate: Double,
-        ratePerKm: Double
+        ratePerKm: Double,
+        businessLat: Double,
+        businessLng: Double
     ): Result<User>
 
     suspend fun registerDriver(

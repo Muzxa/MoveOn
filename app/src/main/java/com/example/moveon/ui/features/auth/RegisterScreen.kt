@@ -155,7 +155,8 @@ fun RegisterScreen(
                     UserRole.USER -> viewModel.onEvent(AuthEvent.RegisterUser(email, password, firstName, lastName, phoneNumber))
                     UserRole.PROVIDER -> viewModel.onEvent(AuthEvent.RegisterProvider(
                         email, password, firstName, lastName, phoneNumber,
-                        establishmentName, baseRate.toDoubleOrNull() ?: 0.0, ratePerKm.toDoubleOrNull() ?: 0.0
+                        establishmentName, baseRate.toDoubleOrNull() ?: 0.0, ratePerKm.toDoubleOrNull() ?: 0.0,
+                        0.0, 0.0
                     ))
                     UserRole.DRIVER -> viewModel.onEvent(AuthEvent.RegisterDriver(
                         email, password, firstName, lastName, phoneNumber,

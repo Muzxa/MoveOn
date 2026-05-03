@@ -205,7 +205,9 @@ class AuthRepositoryImpl @Inject constructor(
         pNumber: String,
         establishmentName: String,
         baseRate: Double,
-        ratePerKm: Double
+        ratePerKm: Double,
+        businessLat: Double,
+        businessLng: Double
     ): Result<User> {
         return try {
             val firebaseUser = getOrCreateAuthUser(email, pass, "Provider registration failed")
@@ -226,7 +228,9 @@ class AuthRepositoryImpl @Inject constructor(
                 base_rate = baseRate,
                 rate_per_km = ratePerKm,
                 is_verified = false,
-                rating = 0.0
+                rating = 0.0,
+                business_lat = businessLat,
+                business_lng = businessLng
             )
 
             // Batch write to ensure both documents are created

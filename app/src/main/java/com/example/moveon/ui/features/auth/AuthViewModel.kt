@@ -67,7 +67,8 @@ class AuthViewModel @Inject constructor(
             is AuthEvent.RegisterUser -> registerUser(event.email, event.password, event.fName, event.lName, event.pNumber)
             is AuthEvent.RegisterProvider -> registerProvider(
                 event.email, event.password, event.fName, event.lName, event.pNumber,
-                event.establishmentName, event.baseRate, event.ratePerKm
+                event.establishmentName, event.baseRate, event.ratePerKm,
+                event.businessLat, event.businessLng
             )
             is AuthEvent.RegisterDriver -> registerDriver(
                 event.email, event.password, event.fName, event.lName, event.pNumber,
@@ -116,11 +117,26 @@ class AuthViewModel @Inject constructor(
 
     private fun registerProvider(
         email: String, pass: String, fName: String, lName: String, pNumber: String,
-        establishmentName: String, baseRate: Double, ratePerKm: Double
+        establishmentName: String,
+        baseRate: Double,
+        ratePerKm: Double,
+        businessLat: Double,
+        businessLng: Double
     ) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.registerProvider(email, pass, fName, lName, pNumber, establishmentName, baseRate, ratePerKm)
+            authRepository.registerProvider(
+                email = email,
+                pass = pass,
+                fName = fName,
+                lName = lName,
+                pNumber = pNumber,
+                establishmentName = establishmentName,
+                baseRate = baseRate,
+                ratePerKm = ratePerKm,
+                businessLat = businessLat,
+                businessLng = businessLng
+            )
                 .onSuccess {
                     _authState.value = AuthState.Success
                     _eventFlow.emit(UiEvent.NavigateToHome(it.role))
@@ -201,7 +217,9 @@ sealed class AuthEvent {
         val pNumber: String,
         val establishmentName: String,
         val baseRate: Double,
-        val ratePerKm: Double
+        val ratePerKm: Double,
+        val businessLat: Double,
+        val businessLng: Double
     ) : AuthEvent()
     data class RegisterDriver(
         val email: String,

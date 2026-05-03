@@ -287,7 +287,9 @@ class MainActivity : ComponentActivity() {
                                             pNumber = authFlowViewModel.phoneNumber,
                                             establishmentName = authFlowViewModel.businessName,
                                             baseRate = authFlowViewModel.baseRate.toDoubleOrNull() ?: 0.0,
-                                            ratePerKm = authFlowViewModel.ratePerKm.toDoubleOrNull() ?: 0.0
+                                            ratePerKm = authFlowViewModel.ratePerKm.toDoubleOrNull() ?: 0.0,
+                                            businessLat = authFlowViewModel.businessLat ?: 0.0,
+                                            businessLng = authFlowViewModel.businessLng ?: 0.0
                                         )
                                     )
                                 }
