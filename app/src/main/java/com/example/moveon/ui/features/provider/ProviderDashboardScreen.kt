@@ -91,6 +91,7 @@ fun ProviderDashboardScreen(
     var selectedRequestId by remember { mutableStateOf<String?>(null) }
     var selectedTripId by remember { mutableStateOf<String?>(null) }
     var shouldOpenAddVehicleSheet by remember { mutableStateOf(false) }
+    var shouldOpenAddDriverSheet by remember { mutableStateOf(false) }
 
     val selectedRequest = state.newRequests.firstOrNull { it.bookingId == selectedRequestId }
     val selectedTrip = state.activeJobs.firstOrNull { it.bookingId == selectedTripId }
@@ -257,7 +258,10 @@ fun ProviderDashboardScreen(
                                     shouldOpenAddVehicleSheet = true
                                     selectedTab = ProviderDashboardTab.Fleet 
                                 },
-                                onAddDriverClick = { selectedTab = ProviderDashboardTab.Drivers }
+                                onAddDriverClick = { 
+                                    shouldOpenAddDriverSheet = true
+                                    selectedTab = ProviderDashboardTab.Drivers 
+                                }
                             )
                             EarningsSection(state = state)
                             KpiSection(state = state)
@@ -292,10 +296,12 @@ fun ProviderDashboardScreen(
             }
 
             ProviderDashboardTab.Drivers -> {
-                ProviderJobsScreen(
+                ProviderDriversScreen(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
+                        .padding(innerPadding),
+                    triggerAddDriver = shouldOpenAddDriverSheet,
+                    onAddDriverTriggered = { shouldOpenAddDriverSheet = false }
                 )
             }
 

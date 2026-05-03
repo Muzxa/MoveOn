@@ -182,14 +182,28 @@ fun DriverDto.toDomainModel(): Driver = Driver(
     id = this.driver_id,
     providerId = this.provider_id,
     vehicleId = this.vehicle_id,
-    licenseNo = this.license_no
+    licenseNo = this.license_no,
+    name = this.name,
+    phone = this.phone,
+    cnic = this.cnic,
+    status = this.status,
+    rating = this.rating,
+    tripsCount = this.trips_count,
+    joinedDateMillis = this.joined_date_millis
 )
 
 fun Driver.toDto(): DriverDto = DriverDto(
     driver_id = this.id,
     provider_id = this.providerId,
     vehicle_id = this.vehicleId,
-    license_no = this.licenseNo
+    license_no = this.licenseNo,
+    name = this.name,
+    phone = this.phone,
+    cnic = this.cnic,
+    status = this.status,
+    rating = this.rating,
+    trips_count = this.tripsCount,
+    joined_date_millis = this.joinedDateMillis
 )
 
 // BookingVehicle Mappings

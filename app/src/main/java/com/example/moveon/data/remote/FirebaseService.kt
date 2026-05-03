@@ -244,6 +244,32 @@ class FirebaseService @Inject constructor(
             .toObjects(DriverDto::class.java)
     }
 
+    suspend fun createDriver(driver: DriverDto): DriverDto {
+        val collection = firestore.collection("drivers")
+        val documentRef = if (driver.driver_id.isBlank()) {
+            collection.document()
+        } else {
+            collection.document(driver.driver_id)
+        }
+        val driverToPersist = driver.copy(driver_id = documentRef.id)
+        documentRef.set(driverToPersist).await()
+        return driverToPersist
+    }
+
+    suspend fun updateDriver(driver: DriverDto): DriverDto {
+        require(driver.driver_id.isNotBlank()) { "Driver id is required." }
+        firestore.collection("drivers").document(driver.driver_id)
+            .set(driver).await()
+        return driver
+    }
+
+    suspend fun deleteDriver(driverId: String) {
+        firestore.collection("drivers")
+            .document(driverId)
+            .delete()
+            .await()
+    }
+
     suspend fun getBookingsForProvider(providerId: String): List<BookingDto> {
         return firestore.collection("bookings")
             .whereEqualTo("provider_id", providerId)
