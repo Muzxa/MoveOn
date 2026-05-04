@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -46,13 +45,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.moveon.ui.components.ActiveMoveErrorCard
+import com.example.moveon.ui.components.ActiveMoveLoadingCard
 import com.example.moveon.ui.components.DashboardTab
 import com.example.moveon.ui.components.MoveOnBottomBar
 import com.example.moveon.ui.components.MoveOnPillButton
 import com.example.moveon.ui.components.MoveOnProfileAvatar
 import com.example.moveon.ui.theme.Accent
 import com.example.moveon.ui.theme.BlueTint
-import com.example.moveon.ui.theme.Error
 import com.example.moveon.ui.theme.GreenTint
 import com.example.moveon.ui.theme.LightBackground
 import com.example.moveon.ui.theme.LightBorder
@@ -68,6 +68,7 @@ fun HomeScreen(
     onManageInventoryClick: () -> Unit = {},
     onScanBoxClick: () -> Unit = {},
     onTrackDriverClick: () -> Unit = {},
+    onOpenMoveHistory: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state = viewModel.homeState.value
@@ -116,11 +117,11 @@ fun HomeScreen(
 
             when {
                 state.isLoading -> {
-                    LoadingMoveCard()
+                    ActiveMoveLoadingCard()
                 }
 
                 state.errorMessage != null -> {
-                    ErrorMoveCard(
+                    ActiveMoveErrorCard(
                         message = state.errorMessage,
                         onRetry = viewModel::refreshDashboard
                     )
@@ -163,6 +164,7 @@ fun HomeScreen(
                     icon = Icons.Outlined.LocalShipping,
                     tint = Primary,
                     bg = BlueTint,
+                    onClick = { onTabSelected(DashboardTab.Book) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -175,6 +177,7 @@ fun HomeScreen(
                     icon = Icons.AutoMirrored.Outlined.PlaylistAddCheck,
                     tint = Primary,
                     bg = BlueTint,
+                    onClick = onOpenMoveHistory,
                     modifier = Modifier.weight(1f)
                 )
                 QuickActionCard(
@@ -186,67 +189,6 @@ fun HomeScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-@Composable
-private fun LoadingMoveCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = LightSurface),
-        border = BorderStroke(1.dp, Primary.copy(alpha = 0.2f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
-                color = Primary
-            )
-            Text(
-                text = "Loading your active move...",
-                style = MaterialTheme.typography.titleMedium,
-                color = LightTextPrimary
-            )
-        }
-    }
-}
-
-@Composable
-private fun ErrorMoveCard(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = LightSurface),
-        border = BorderStroke(1.dp, Error.copy(alpha = 0.2f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = "Could not load move details",
-                style = MaterialTheme.typography.titleMedium,
-                color = LightTextPrimary
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = LightTextSecondary
-            )
-            MoveOnPillButton(text = "Retry", onClick = onRetry, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -393,6 +335,7 @@ private fun ActiveMoveCard(
                     MoveOnPillButton(
                         text = "Manage Inventory",
                         onClick = onManageInventoryClick,
+                        textFontSize = 12.sp,
                         modifier = Modifier.weight(1f)
                     )
                 }

@@ -5,6 +5,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moveon.data.session.CustomerActiveBookingSession
+import com.example.moveon.data.session.CustomerActiveBookingState
 import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.BookingStatus
 import com.example.moveon.domain.model.Provider
@@ -33,6 +35,7 @@ import javax.inject.Inject
 class BookViewModel @Inject constructor(
     authRepository: AuthRepository,
     private val logisticsRepository: LogisticsRepository,
+    private val customerActiveBookingSession: CustomerActiveBookingSession,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -56,39 +59,74 @@ class BookViewModel @Inject constructor(
         // Try to restore form state from SavedStateHandle (in case ViewModel was recreated)
         restoreFormState()
         refreshProviders()
-        loadCurrentBookingForUser()
+        observeActiveBookingSession()
         Log.d("BookViewModel", "[INIT] BookViewModel initialized")
     }
 
-    private fun loadCurrentBookingForUser() {
+    private fun observeActiveBookingSession() {
         viewModelScope.launch {
-            currentUser.collect { user ->
-                if (user == null) return@collect
-                try {
-                    val current = logisticsRepository.getCurrentBookingForUser(user.id)
-                    current.onSuccess { booking ->
-                        if (booking != null) {
-                            Log.d("BookViewModel", "[INIT] Found active booking for user ${user.id}: ${booking.id}")
-                            // fetch provider details for nicer UI labels
-                            val provider = runCatching { logisticsRepository.getProviderById(booking.providerId) }
-                                .getOrNull()?.getOrNull()
+            customerActiveBookingSession.state.collect { s ->
+                _state.value = _state.value.copy(customerBookingSession = s)
+                applySessionToBookingState(s)
+            }
+        }
+    }
 
-                            _state.value = _state.value.copy(
-                                createdBooking = booking,
-                                createdProvider = provider,
-                                isWaitingForProviderResponse = booking.status == BookingStatus.SEARCHING
-                            )
-                            // start listeners for booking
-                            startBookingStatusListener(booking.id)
-                            startVehicleTracking(booking)
-                        }
-                    }.onFailure { err ->
-                        Log.e("BookViewModel", "[INIT] Failed to load current booking for user ${user.id}: ${err.message}", err)
+    private suspend fun applySessionToBookingState(s: CustomerActiveBookingState) {
+        when (s) {
+            is CustomerActiveBookingState.Ready -> {
+                val serverBooking = s.booking
+                val local = _state.value.createdBooking
+                if (serverBooking != null) {
+                    val needFullHydrate = local == null || local.id != serverBooking.id
+                    if (needFullHydrate) {
+                        hydrateActiveBooking(serverBooking)
+                    } else if (local.status != BookingStatus.COMPLETED && serverBooking != local) {
+                        _state.value = _state.value.copy(
+                            createdBooking = serverBooking,
+                            createdProvider = resolveProvider(serverBooking),
+                            isWaitingForProviderResponse = serverBooking.status == BookingStatus.SEARCHING
+                        )
                     }
-                } catch (e: Exception) {
-                    Log.e("BookViewModel", "[INIT] Exception while loading current booking: ${e.message}", e)
+                } else {
+                    if (local != null && local.status != BookingStatus.COMPLETED) {
+                        clearBookingTrackingJobs()
+                        _state.value = _state.value.copy(
+                            createdBooking = null,
+                            createdProvider = null,
+                            showOtpDialog = false,
+                            isWaitingForProviderResponse = false,
+                            vehicleLat = null,
+                            vehicleLng = null,
+                            bookingStatusError = null
+                        )
+                    }
                 }
             }
+            else -> Unit
+        }
+    }
+
+    private suspend fun resolveProvider(booking: Booking): Provider? {
+        return logisticsRepository.getProviderById(booking.providerId).getOrNull()
+    }
+
+    private suspend fun hydrateActiveBooking(booking: Booking) {
+        clearBookingTrackingJobs()
+        val provider = resolveProvider(booking)
+        _state.value = _state.value.copy(
+            createdBooking = booking,
+            createdProvider = provider,
+            isWaitingForProviderResponse = booking.status == BookingStatus.SEARCHING,
+            bookingError = null
+        )
+        startBookingStatusListener(booking.id)
+        startVehicleTracking(booking)
+    }
+
+    fun retryCustomerBookingSession() {
+        viewModelScope.launch {
+            customerActiveBookingSession.refresh()
         }
     }
 
@@ -285,6 +323,7 @@ class BookViewModel @Inject constructor(
     fun startNewBooking() {
         clearBookingTrackingJobs()
         resetForNewBooking()
+        customerActiveBookingSession.onBookingUpdated(null)
     }
 
     fun dismissWaitingForProviderResponse() {
@@ -299,6 +338,7 @@ class BookViewModel @Inject constructor(
             vehicleLat = null,
             vehicleLng = null
         )
+        customerActiveBookingSession.onBookingUpdated(null)
     }
 
     fun onStepBack() {
@@ -443,6 +483,7 @@ class BookViewModel @Inject constructor(
                         isWaitingForProviderResponse = true,
                         showOtpDialog = false
                     )
+                    customerActiveBookingSession.onBookingUpdated(createdBooking)
                     // Start listening to booking status changes
                     startBookingStatusListener(createdBooking.id)
                     // Start vehicle tracking if booking has vehicles
@@ -506,8 +547,11 @@ class BookViewModel @Inject constructor(
                 }
                 .collect { status ->
                     Log.d("BookViewModel", "[STATUS_LISTENER] Booking $bookingId status changed to: $status")
+                    val current = _state.value.createdBooking ?: return@collect
+                    val updatedBooking = current.copy(status = status)
                     _state.value = _state.value.copy(
-                        bookingStatusError = null
+                        bookingStatusError = null,
+                        createdBooking = updatedBooking
                     )
                     when (status) {
                         BookingStatus.CONFIRMED -> {
@@ -539,6 +583,7 @@ class BookViewModel @Inject constructor(
                             Log.d("BookViewModel", "[STATUS_LISTENER] Booking $bookingId still in ${status.name}")
                         }
                     }
+                    customerActiveBookingSession.onBookingUpdated(_state.value.createdBooking)
                 }
         }
     }
@@ -551,13 +596,12 @@ class BookViewModel @Inject constructor(
     }
 
     private fun resetForNewBooking() {
-        val providersSnapshot = _state.value.providers
-        val providersLoading = _state.value.isLoadingProviders
-
+        val snap = _state.value
         _state.value = BookUiState(
-            providers = providersSnapshot,
-            isLoadingProviders = providersLoading,
-            providersError = null
+            providers = snap.providers,
+            isLoadingProviders = snap.isLoadingProviders,
+            providersError = null,
+            customerBookingSession = snap.customerBookingSession
         )
     }
 
@@ -693,6 +737,7 @@ class BookViewModel @Inject constructor(
 }
 
 data class BookUiState(
+    val customerBookingSession: CustomerActiveBookingState = CustomerActiveBookingState.Loading,
     val currentStep: Int = 1,
     val selectedServiceId: String = "",
     val selectedProviderId: String = "",

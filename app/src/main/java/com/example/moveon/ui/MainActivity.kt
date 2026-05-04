@@ -360,6 +360,12 @@ class MainActivity : ComponentActivity() {
                             onTrackDriverClick = {
                                 navController.navigate(Screen.Book.route)
                             }
+                            ,
+                            onOpenMoveHistory = {
+                                navController.navigate(Screen.MoveHistory.route) {
+                                    launchSingleTop = true
+                                }
+                            }
                         )
                     }
 

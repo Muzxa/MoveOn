@@ -4,15 +4,17 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moveon.data.session.CustomerActiveBookingSession
+import com.example.moveon.data.session.CustomerActiveBookingState
 import com.example.moveon.domain.model.Booking
 import com.example.moveon.domain.model.BookingStatus
 import com.example.moveon.domain.model.User
 import com.example.moveon.domain.repository.AuthRepository
-import com.example.moveon.domain.repository.LogisticsRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
@@ -21,7 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val logisticsRepository: LogisticsRepository,
+    private val customerActiveBookingSession: CustomerActiveBookingSession,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
@@ -36,72 +38,58 @@ class HomeViewModel @Inject constructor(
     val homeState: State<HomeUiState> = _homeState
 
     init {
-        observeUserAndLoadDashboard()
-    }
-
-    fun refreshDashboard() {
         viewModelScope.launch {
-            val user = currentUser.value
-            if (user == null) {
-                _homeState.value = HomeUiState(
-                    isLoading = false,
-                    errorMessage = "Could not load your profile."
-                )
-                return@launch
-            }
-            loadDashboardForUser(user)
-        }
-    }
-
-    private fun observeUserAndLoadDashboard() {
-        viewModelScope.launch {
-            currentUser.collect { user ->
+            combine(currentUser, customerActiveBookingSession.state) { user, bookingState ->
+                Pair(user, bookingState)
+            }.collect { (user, bookingState) ->
                 if (user == null) {
                     _homeState.value = HomeUiState(
                         isLoading = false,
                         errorMessage = "Could not load your profile."
                     )
-                } else {
-                    loadDashboardForUser(user)
+                    return@collect
+                }
+
+                val base = HomeUiState(
+                    profileName = "${user.firstName} ${user.lastName}".trim().ifBlank { "MoveOn User" },
+                    profileInitials = initialsOf(user.firstName, user.lastName),
+                    profilePhotoUrl = firebaseAuth.currentUser?.photoUrl?.toString()
+                )
+
+                _homeState.value = when (bookingState) {
+                    is CustomerActiveBookingState.Loading -> {
+                        base.copy(
+                            isLoading = true,
+                            activeMove = null,
+                            errorMessage = null
+                        )
+                    }
+                    is CustomerActiveBookingState.Error -> {
+                        base.copy(
+                            isLoading = false,
+                            activeMove = null,
+                            errorMessage = bookingState.message
+                        )
+                    }
+                    is CustomerActiveBookingState.Ready -> {
+                        val move = bookingState.booking?.toActiveMoveUi(
+                            bookingState.providerName?.takeIf { it.isNotBlank() } ?: "Assigned Provider"
+                        )
+                        base.copy(
+                            isLoading = false,
+                            activeMove = move,
+                            errorMessage = null
+                        )
+                    }
                 }
             }
         }
     }
 
-    private suspend fun loadDashboardForUser(user: User) {
-        val baseState = HomeUiState(
-            isLoading = true,
-            profileName = "${user.firstName} ${user.lastName}".trim().ifBlank { "MoveOn User" },
-            profileInitials = initialsOf(user.firstName, user.lastName),
-            profilePhotoUrl = firebaseAuth.currentUser?.photoUrl?.toString()
-        )
-        _homeState.value = baseState
-
-        logisticsRepository.getCurrentBookingForUser(user.id)
-            .onSuccess { booking ->
-                if (booking == null) {
-                    _homeState.value = baseState.copy(
-                        isLoading = false,
-                        activeMove = null,
-                        errorMessage = null
-                    )
-                } else {
-                    val providerResult = logisticsRepository.getProviderById(booking.providerId)
-                    val providerName = providerResult.getOrNull()?.establishmentName ?: "Assigned Provider"
-                    _homeState.value = baseState.copy(
-                        isLoading = false,
-                        activeMove = booking.toActiveMoveUi(providerName),
-                        errorMessage = null
-                    )
-                }
-            }
-            .onFailure { throwable ->
-                _homeState.value = baseState.copy(
-                    isLoading = false,
-                    activeMove = null,
-                    errorMessage = throwable.message ?: "Unable to load your move details right now."
-                )
-            }
+    fun refreshDashboard() {
+        viewModelScope.launch {
+            customerActiveBookingSession.refresh()
+        }
     }
 
     private fun initialsOf(firstName: String, lastName: String): String {
