@@ -25,8 +25,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 
 @Composable
 fun MoveOnPillButton(
@@ -35,7 +37,8 @@ fun MoveOnPillButton(
     modifier: Modifier = Modifier,
     background: Color = Color(0xFF1565C0),
     textColor: Color = Color.White,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    textFontSize: TextUnit = 14.sp
 ) {
     Button(
         onClick = onClick,
@@ -47,7 +50,15 @@ fun MoveOnPillButton(
         shape = RoundedCornerShape(20.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
     ) {
-        Text(text = text, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = textFontSize,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = false
+        )
     }
 }
 

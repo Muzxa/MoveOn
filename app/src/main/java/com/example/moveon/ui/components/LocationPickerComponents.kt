@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -619,8 +618,10 @@ fun DualMarkerMapPreview(
             cameraPositionState = cameraPositionState,
             properties = MapProperties(mapType = MapType.NORMAL),
             uiSettings = MapUiSettings(
-                zoomControlsEnabled = true,
+                zoomControlsEnabled = false,
                 compassEnabled = true,
+                zoomGesturesEnabled = true,
+                scrollGesturesEnabled = true,
                 mapToolbarEnabled = false
             )
         ) {
@@ -678,7 +679,7 @@ fun LiveTrackingMap(
                 cameraPositionState = cameraPositionState,
                 properties = MapProperties(mapType = MapType.NORMAL),
                 uiSettings = MapUiSettings(
-                    zoomControlsEnabled = true,
+                    zoomControlsEnabled = false,
                     compassEnabled = true,
                     scrollGesturesEnabled = true,
                     zoomGesturesEnabled = true,
@@ -731,34 +732,6 @@ fun LiveTrackingMap(
                         state = MarkerState(position = vehiclePosition),
                         title = "Vehicle"
                     )
-                }
-            }
-
-            // Live indicator badge
-            if (vehiclePosition != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .background(Color(0xFFE53935), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(Color.White, CircleShape)
-                        )
-                        Text(
-                            "LIVE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
                 }
             }
 
