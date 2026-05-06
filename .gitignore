@@ -25,3 +25,4 @@ AGENTS.md
 errors/
 .idea/deploymentTargetSelector.xml
 .idea/deploymentTargetSelector.xml
+firestore.rules
